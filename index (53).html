@@ -1,0 +1,2530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acompanhamento de Parcerias · SuperAção SP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy:#2A3D6C;
+    --navy-dark:#22325A;
+    --blue:#0390D0;
+    --orange:#D04303;
+    --bg:#F4F5F7;
+    --surface:#FFFFFF;
+    --ink:#22293A;
+    --muted:#5B6470;
+    --line:#DDE1E7;
+    --critico:#C5443C;
+    --critico-bg:#F9E9E8;
+    --bom:#0390D0;
+    --bom-bg:#E5F3FB;
+    --otimo:#1E7A46;
+    --otimo-bg:#E7F2EB;
+    --sem:#828B96;
+    --sem-bg:#EEF0F3;
+    --radius:6px;
+    --sidebar-w:230px;
+    font-size:15px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:Arial, Tahoma, sans-serif;min-height:100vh;
+  }
+  a{color:inherit}
+  button{font-family:inherit;cursor:pointer}
+  button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible{
+    outline:2px solid var(--blue);outline-offset:2px;
+  }
+
+  /* ---------- topo ---------- */
+  header{
+    background:#FFFFFF;border-bottom:1px solid var(--line);
+    padding:10px 20px;position:sticky;top:0;z-index:40;
+  }
+  .header-inner{
+    max-width:1320px;margin:0 auto;
+    display:flex;align-items:center;gap:16px;
+  }
+  #btn-menu{
+    background:#fff;border:1px solid var(--line);color:var(--navy);
+    border-radius:var(--radius);width:36px;height:34px;font-size:1rem;line-height:1;flex:none;
+  }
+  #btn-menu:hover{background:#F0F2F5}
+  .logo{height:14px;display:block}
+  .brand{display:flex;flex-direction:column;gap:1px;margin-right:auto;border-left:1px solid var(--line);padding-left:16px}
+  .brand h1{font-size:1rem;font-weight:bold;color:var(--navy);line-height:1.2}
+  .brand .sub{font-size:.72rem;color:var(--muted)}
+  #sync-pill{
+    display:none;align-items:center;gap:7px;
+    font-size:.72rem;font-weight:bold;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:#fff;
+  }
+  #sync-pill .s-dot{width:8px;height:8px;border-radius:50%;background:var(--sem)}
+  #sync-pill.ok .s-dot{background:#2E9E63}
+  #sync-pill.saving .s-dot{background:#D99A16}
+  #sync-pill.off .s-dot{background:var(--critico)}
+  #btn-logout-top{
+    display:none;background:#fff;border:1px solid var(--line);color:var(--navy);
+    border-radius:var(--radius);padding:7px 14px;font-size:.78rem;font-weight:bold;
+  }
+  #btn-logout-top:hover{border-color:var(--navy);background:#F0F2F5}
+  body.logged-in #btn-logout-top{display:inline-block}
+
+  /* ---------- layout ---------- */
+  .layout{max-width:1320px;margin:0 auto;display:flex;align-items:flex-start}
+  aside#sidebar{
+    width:var(--sidebar-w);flex:none;
+    background:var(--navy);
+    padding:18px 0;
+    position:sticky;top:55px;
+    min-height:calc(100vh - 55px);
+    max-height:calc(100vh - 55px);overflow-y:auto;
+    transition:margin-left .2s ease;
+  }
+  aside#sidebar nav{display:flex;flex-direction:column}
+  aside#sidebar a{
+    text-decoration:none;font-size:.86rem;color:rgba(255,255,255,.78);
+    padding:10px 18px;line-height:1.3;
+    border-left:3px solid transparent;
+    display:block;
+  }
+  aside#sidebar a:hover{background:rgba(255,255,255,.08);color:#fff}
+  aside#sidebar a.active{
+    background:rgba(255,255,255,.12);color:#fff;font-weight:bold;
+    border-left-color:var(--blue);
+  }
+  aside#sidebar a.sub{padding-left:36px;font-size:.83rem}
+  aside#sidebar .nav-sep{border-top:1px solid rgba(255,255,255,.15);margin:12px 18px}
+  main{flex:1;min-width:0;padding:26px 24px 60px}
+
+  @media (min-width:900px){
+    body.menu-closed aside#sidebar{margin-left:calc(var(--sidebar-w) * -1)}
+  }
+  @media (max-width:899px){
+    aside#sidebar{
+      position:fixed;left:0;top:55px;bottom:0;z-index:35;
+      transform:translateX(-100%);transition:transform .2s ease;margin:0;
+      min-height:0;max-height:none;
+    }
+    body.menu-open-mobile aside#sidebar{transform:translateX(0);box-shadow:2px 0 14px rgba(0,0,0,.25)}
+  }
+
+  .view-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .view-title h2{font-size:1.35rem;font-weight:bold;color:var(--navy)}
+  .view-title .count{font-size:.78rem;color:var(--muted)}
+  .view-sub{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+  .back-link{
+    display:inline-block;text-decoration:none;font-size:.8rem;font-weight:bold;
+    color:var(--navy);margin-bottom:14px;
+  }
+  .back-link:hover{color:var(--blue)}
+
+  /* ---------- KPIs ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+  .kpi{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    border-top:3px solid var(--navy);
+    padding:14px 16px 12px;display:flex;flex-direction:column;gap:5px;
+  }
+  .kpi .label{font-size:.68rem;font-weight:bold;text-transform:uppercase;color:var(--muted);line-height:1.35}
+  .kpi .value{font-size:1.75rem;font-weight:bold;line-height:1;color:var(--navy)}
+  .kpi.critico-kpi{border-top-color:var(--critico)}
+  .kpi.critico-kpi .value{color:var(--critico)}
+  .kpi.otimo-kpi{border-top-color:var(--otimo)}
+  .kpi.otimo-kpi .value{color:var(--otimo)}
+  .kpi.atraso-kpi{border-top-color:var(--critico)}
+  .kpi.atraso-kpi .value{color:var(--critico)}
+
+  /* ---------- destaque (visão geral e blocos) ---------- */
+  .hero{
+    background:#E9EEF5;
+    border:1px solid #D6DEE9;
+    border-radius:8px;
+    padding:18px;
+    display:grid;
+    grid-template-columns:minmax(230px,1fr) 1px minmax(0,2fr);
+    gap:18px;
+    margin-bottom:24px;
+  }
+  .hero-left{display:flex;flex-direction:column;gap:12px}
+  .hero-sep{background:#C3CFDE;width:1px}
+  .hero-right{display:flex;flex-direction:column;gap:9px;min-width:0}
+  .hero-right-title{
+    font-size:.72rem;font-weight:bold;text-transform:uppercase;color:var(--navy);
+  }
+  .hero-pay-grid{
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;flex:1;
+  }
+  .hero .kpi{border-color:#D6DEE9}
+  .hero .kpi.compact{padding:10px 12px 9px;gap:3px}
+  .hero .kpi.compact .label{font-size:.62rem}
+  .hero .kpi.compact .value{font-size:1.3rem}
+  .hero-criticos{display:flex;flex-direction:column;gap:9px}
+  @media (max-width:820px){
+    .hero{grid-template-columns:1fr}
+    .hero-sep{display:none}
+  }
+  @media (max-width:560px){
+    .hero-pay-grid{grid-template-columns:1fr;grid-template-rows:none}
+  }
+
+  /* ---------- barra de distribuição ---------- */
+  .dist-wrap{margin-bottom:24px}
+  .dist-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:var(--sem-bg)}
+  .dist-bar div{height:100%}
+  .dist-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:7px;font-size:.74rem;color:var(--muted)}
+  .dist-legend span{display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+  /* ---------- cartões de bloco ---------- */
+  .blocos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:6px}
+  .bloco-btn{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;text-align:left;display:flex;flex-direction:column;gap:9px;
+    transition:border-color .15s;text-decoration:none;
+  }
+  .bloco-btn:hover{border-color:var(--navy)}
+  .bloco-btn .name{font-size:1rem;font-weight:bold;color:var(--navy)}
+  .bloco-btn .meta{font-size:.74rem;color:var(--muted)}
+  .bloco-btn .mini-dist{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--sem-bg)}
+  .bloco-btn .mini-dist div{height:100%}
+  .bloco-btn .go{font-size:.78rem;font-weight:bold;color:var(--blue)}
+  .bloco-btn.varios{border-style:dashed}
+
+  .section-label{
+    font-size:.76rem;font-weight:bold;text-transform:uppercase;
+    color:var(--navy);margin:28px 0 10px;
+    padding-bottom:5px;border-bottom:2px solid var(--line);
+  }
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{
+    background:var(--critico-bg);color:var(--critico);border:1px solid #ECC9C6;
+    border-radius:999px;font-size:.78rem;font-weight:bold;padding:3px 11px;text-decoration:none;
+  }
+  .chip:hover{filter:brightness(.96)}
+  .empty-note{color:var(--muted);font-size:.83rem}
+
+  /* ---------- tabelas ---------- */
+  .table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  table.mun-table{min-width:980px}
+  table.tasks-table{min-width:760px}
+  thead th{
+    font-size:.66rem;font-weight:bold;text-transform:uppercase;
+    color:#fff;text-align:left;padding:10px 12px;
+    background:var(--navy);line-height:1.3;
+  }
+  thead th.num{text-align:right}
+  tbody td{padding:8px 12px;border-bottom:1px solid var(--line);font-size:.86rem}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:#FAFBFC}
+  td.mun a{font-weight:bold;color:var(--navy);text-decoration:none}
+  td.mun a:hover{color:var(--blue)}
+  td.num{text-align:right}
+  td .lead-count{font-size:.85rem;font-weight:bold}
+  td .pdf-count, td .pay-val{font-size:.85rem;color:var(--muted)}
+  td.mono{font-size:.83rem}
+  .tag-mun{
+    display:inline-block;background:var(--bom-bg);color:var(--navy);
+    border:1px solid #C2E0F2;border-radius:999px;
+    font-size:.73rem;font-weight:bold;padding:2px 10px;text-decoration:none;
+  }
+  .tag-mun:hover{filter:brightness(.97)}
+  .tag-bloco{
+    display:inline-block;background:var(--sem-bg);color:var(--muted);
+    border:1px solid var(--line);border-radius:4px;
+    font-size:.66rem;font-weight:bold;text-transform:uppercase;
+    padding:2px 8px;
+  }
+  .tag-sit{
+    display:inline-block;border-radius:999px;
+    font-size:.72rem;font-weight:bold;padding:2px 10px;white-space:nowrap;
+  }
+  .tag-sit.atrasado{background:var(--critico-bg);color:var(--critico)}
+  .tag-sit.nao{background:var(--sem-bg);color:var(--sem)}
+  td .t-lead{display:block;font-size:.74rem;color:var(--muted);margin-top:2px}
+
+  select.estado{
+    appearance:none;-webkit-appearance:none;border-radius:999px;border:1px solid transparent;
+    font-family:inherit;font-size:.76rem;font-weight:bold;padding:4px 24px 4px 11px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235B6470' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+  }
+  select.estado.critico{background-color:var(--critico-bg);color:var(--critico);border-color:#ECC9C6}
+  select.estado.bom{background-color:var(--bom-bg);color:var(--bom);border-color:#C2E0F2}
+  select.estado.otimo{background-color:var(--otimo-bg);color:var(--otimo);border-color:#C3DECD}
+  select.estado.sem{background-color:var(--sem-bg);color:var(--sem);border-color:var(--line)}
+
+  input.qty{
+    width:72px;text-align:right;font-size:.84rem;
+    border:1px solid var(--line);border-radius:4px;padding:5px 7px;background:#fff;color:var(--ink);
+  }
+  input.qty:hover{border-color:#AEB6C2}
+  .save-hint{font-size:.74rem;color:var(--muted);margin-top:9px}
+  .save-hint b{color:var(--otimo)}
+
+  /* ---------- diagnóstico ---------- */
+  .diag-area{
+    background:var(--surface);border:1px dashed #B9C1CD;border-radius:var(--radius);
+    padding:20px;display:flex;flex-direction:column;gap:6px;
+  }
+  .diag-area .diag-title{font-size:.92rem;font-weight:bold;color:var(--navy)}
+  .diag-area .diag-note{font-size:.8rem;color:var(--muted)}
+  .diag-area a{color:var(--blue)}
+
+  .chart-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 16px 10px;
+  }
+  .chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .chart-title{font-size:.92rem;font-weight:bold;color:var(--navy)}
+  .chart-meta{font-size:.73rem;color:var(--muted)}
+  select.diag-select{
+    font-family:inherit;font-size:.8rem;font-weight:bold;color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:6px 10px;background:#fff;max-width:250px;
+  }
+  select.diag-select:hover{border-color:#AEB6C2}
+  .chart-note{font-size:.74rem;color:var(--muted);margin-bottom:12px}
+  .chart-scroll{overflow-x:auto;padding-bottom:6px}
+  .chart{display:flex;align-items:flex-end;gap:7px;min-width:min-content}
+  .cbar{width:34px;flex:none;display:flex;flex-direction:column;align-items:center}
+  .cbar .c-bararea{
+    height:190px;display:flex;flex-direction:column;
+    justify-content:flex-end;align-items:center;gap:3px;width:100%;
+  }
+  .cbar .c-val{font-size:.64rem;font-weight:bold;color:var(--muted)}
+  .cbar .c-fill{width:22px;background:var(--navy);border-radius:3px 3px 0 0;min-height:2px}
+  .cbar:nth-child(-n+3) .c-fill{background:var(--blue)}
+  .cbar .c-label{
+    writing-mode:vertical-rl;transform:rotate(180deg);
+    font-size:.67rem;color:var(--muted);line-height:1.15;
+    height:118px;margin-top:6px;
+    overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  }
+
+  /* linhas clicáveis na tabela de atividades */
+  tr.row-link{cursor:pointer}
+  tr.row-link:hover td{background:#F0F4F9}
+
+  /* sub-blocos do diagnóstico */
+  .diag-sub{margin-top:34px;padding-top:24px;border-top:1px solid var(--line)}
+  .diag-sub-title{font-size:.85rem;font-weight:bold;color:var(--navy);margin-bottom:2px}
+  .diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:34px;padding-top:24px;border-top:1px solid var(--line)}
+  @media (max-width:760px){.diag-grid{grid-template-columns:1fr;gap:26px}}
+
+  /* pirâmide etária (estilo IBGE: rótulos à esquerda, eixo central) */
+  .pyr{display:flex;flex-direction:column;gap:3px;margin-top:14px;max-width:640px}
+  .pyr-row{display:grid;grid-template-columns:92px 1fr 1fr;align-items:center;column-gap:0}
+  .pyr-faixa{font-size:.68rem;color:var(--muted);text-align:right;padding-right:10px;white-space:nowrap}
+  .pyr-cell{display:flex;align-items:center;gap:5px;min-width:0}
+  .pyr-cell.f{justify-content:flex-end}
+  .pyr-cell.m{border-left:2px solid #8B95A5;padding-left:0}
+  .pyr-cell .p-val{font-size:.62rem;color:var(--muted);white-space:nowrap}
+  .pyr-bar{height:13px;min-width:1px}
+  .pyr-bar.f{background:var(--orange);border-radius:2px 0 0 2px}
+  .pyr-bar.m{background:var(--navy);border-radius:0 2px 2px 0}
+  .pyr-axisrow{display:grid;grid-template-columns:92px 1fr 1fr;margin-top:2px}
+  .pyr-axis{display:flex;justify-content:space-between;font-size:.64rem;color:var(--muted);border-top:1px solid #8B95A5;padding-top:3px}
+  .pyr-axis.m{border-left:2px solid #8B95A5}
+  .pyr-legend{display:flex;justify-content:center;gap:22px;font-size:.76rem;color:var(--ink);margin-top:12px}
+  .pyr-legend span{display:flex;align-items:center;gap:7px}
+  .pyr-legend .sq{width:11px;height:11px;display:inline-block}
+
+  /* barras de escolaridade */
+  .escbars{display:flex;align-items:flex-end;gap:30px;margin-top:16px;flex-wrap:wrap}
+  .escbar{display:flex;flex-direction:column;align-items:center;width:104px}
+  .escbar .e-val{font-size:.72rem;font-weight:bold;color:var(--navy)}
+  .escbar .e-pct{font-size:.66rem;color:var(--muted);margin-bottom:4px}
+  .escbar .e-fill{width:56px;background:var(--navy);border-radius:3px 3px 0 0;min-height:2px}
+  .escbar.top .e-fill{background:var(--blue)}
+  .escbar .e-label{font-size:.7rem;color:var(--muted);text-align:center;line-height:1.25;margin-top:7px;min-height:2.5em}
+
+  /* barras de percentual (empreender) */  .pctbars{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+  .pctbar .p-head{display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px}
+  .pctbar .p-head b{color:var(--navy)}
+  .pctbar .p-track{height:17px;background:var(--sem-bg);border-radius:3px;overflow:hidden}
+  .pctbar .p-fill{height:100%;background:var(--blue);border-radius:3px 0 0 3px}
+  .pctbar.neg .p-fill{background:var(--orange)}
+
+  /* pizza (qualificação) — SVG com percentuais internos */
+  .pie-center{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:12px}
+  .pie-svg{width:110px;height:110px;flex:none}
+  .pie-svg text{font-family:Arial, Tahoma, sans-serif;font-weight:bold;fill:#fff}
+  .pie-legend{display:flex;justify-content:center;gap:18px;font-size:.78rem;flex-wrap:wrap}
+  .pie-legend span{display:flex;align-items:center;gap:7px}
+  .pie-legend .sq{width:11px;height:11px;border-radius:2px;display:inline-block}
+  .pie-legend b{color:var(--navy)}
+
+  /* ---------- configurações ---------- */
+  .config-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    border-left:4px solid var(--navy);
+    padding:18px;display:flex;flex-direction:column;gap:9px;margin-bottom:14px;
+  }
+  .config-card h3{font-size:.95rem;font-weight:bold;color:var(--navy)}
+  .config-card p{font-size:.83rem;color:var(--muted);line-height:1.5}
+  .config-card .config-meta{font-size:.78rem;color:var(--muted)}
+  .config-card .config-meta b{color:var(--ink)}
+  .config-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:3px}
+
+  /* ---------- página do município ---------- */
+  .mun-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .mun-head h2{font-size:1.35rem;font-weight:bold;color:var(--navy)}
+  .mun-head .bloco-tag{
+    font-size:.68rem;font-weight:bold;text-transform:uppercase;color:var(--muted);
+    border:1px solid var(--line);border-radius:4px;padding:3px 8px;background:var(--surface);
+  }
+  .mun-stats{font-size:.77rem;color:var(--muted);margin-left:auto}
+
+  /* ---------- kanban ---------- */
+  .board-toolbar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    flex-wrap:wrap;margin-bottom:12px;
+  }
+  .btn-primary{
+    background:var(--navy);color:#fff;border:none;border-radius:var(--radius);
+    font-size:.83rem;font-weight:bold;padding:9px 16px;
+  }
+  .btn-primary:hover{background:var(--navy-dark)}
+  .btn-primary:disabled{opacity:.6;cursor:wait}
+  .btn-secondary{
+    background:#fff;color:var(--navy);border:1px solid var(--line);
+    border-radius:var(--radius);font-size:.8rem;font-weight:bold;padding:8px 14px;
+  }
+  .btn-secondary:hover{border-color:var(--navy)}
+  .board-scroll-hint{font-size:.74rem;color:var(--muted)}
+
+  .board{
+    display:flex;gap:10px;overflow-x:auto;padding-bottom:14px;
+    align-items:flex-start;
+  }
+  .col{
+    flex:0 0 264px;
+    background:#EAEDF1;border:1px solid var(--line);border-radius:var(--radius);
+    display:flex;flex-direction:column;max-height:72vh;
+  }
+  .col-head{display:flex;align-items:center;gap:8px;padding:10px 11px 9px;border-bottom:2px solid var(--navy)}
+  .col-head .col-name{font-size:.78rem;font-weight:bold;flex:1;line-height:1.25;color:var(--navy)}
+  .col-head .col-count{
+    font-size:.7rem;font-weight:bold;
+    color:var(--muted);background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:1px 8px;
+  }
+  .col-head .col-add{
+    background:transparent;border:none;color:var(--muted);
+    font-size:1.05rem;font-weight:bold;line-height:1;padding:2px 6px;border-radius:4px;
+  }
+  .col-head .col-add:hover{background:#fff;color:var(--navy)}
+  .col-cards{padding:9px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:46px;flex:1}
+  .col.dragover{outline:2px dashed var(--blue);outline-offset:-4px}
+  .col-empty{
+    font-size:.73rem;color:var(--muted);text-align:center;
+    padding:10px 6px;border:1px dashed #C0C7D1;border-radius:4px;
+  }
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:4px;
+    border-left:3px solid var(--navy);
+    padding:9px 11px;display:flex;flex-direction:column;gap:5px;
+    cursor:grab;
+  }
+  .card:hover{border-color:#AEB6C2;border-left-color:var(--blue)}
+  .card:active{cursor:grabbing}
+  .card.dragging{opacity:.5}
+  .card .c-nome{font-size:.85rem;font-weight:bold;line-height:1.25}
+  .card .c-inst{font-size:.76rem;color:var(--muted);line-height:1.3}
+  .card .c-foot{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
+  .status-pill{font-size:.66rem;font-weight:bold;border-radius:999px;padding:2px 8px}
+  .status-pill.nao_iniciado{background:var(--sem-bg);color:var(--sem)}
+  .status-pill.em_andamento{background:var(--bom-bg);color:var(--bom)}
+  .status-pill.concluido{background:var(--otimo-bg);color:var(--otimo)}
+  .status-pill.atrasado{background:var(--critico-bg);color:var(--critico)}
+  .status-pill.perdido{background:#E3E6EB;color:#4B5665;text-decoration:line-through}
+  .tag-prog{font-size:.66rem;font-weight:bold;border-radius:4px;padding:2px 7px}
+  .tag-prog.proteger{background:#FBF0DC;color:#9A6A08}
+  .tag-prog.desenvolver{background:var(--bom-bg);color:var(--bom)}
+  .tag-prog.incluir{background:var(--otimo-bg);color:var(--otimo)}
+  .tag-prog.todos{background:#E4E9F3;color:var(--navy)}
+  .c-tasks{
+    margin-left:auto;font-size:.68rem;font-weight:bold;color:var(--muted);
+    display:flex;align-items:center;gap:5px;
+  }
+  .c-tasks .bar{width:32px;height:5px;border-radius:3px;background:var(--sem-bg);overflow:hidden}
+  .c-tasks .bar div{height:100%;background:var(--otimo)}
+  .c-ata{
+    font-size:.71rem;font-weight:bold;color:var(--blue);
+    text-decoration:none;
+  }
+  .c-ata:hover{text-decoration:underline}
+
+  /* ---------- modal ---------- */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(34,41,58,.55);
+    display:flex;align-items:flex-start;justify-content:center;
+    padding:5vh 16px 16px;z-index:50;overflow-y:auto;
+  }
+  .modal{
+    background:var(--surface);border-radius:8px;width:100%;max-width:620px;
+    padding:0 0 18px;box-shadow:0 10px 36px rgba(0,0,0,.3);overflow:hidden;
+  }
+  .modal .modal-top{
+    background:var(--navy);color:#fff;padding:14px 22px 12px;margin-bottom:16px;
+  }
+  .modal h3{font-size:1.05rem;font-weight:bold}
+  .modal .modal-sub{font-size:.76rem;color:rgba(255,255,255,.75);margin-top:2px}
+  .modal .modal-body{padding:0 22px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field.full{grid-column:1 / -1}
+  .field label{font-size:.7rem;font-weight:bold;text-transform:uppercase;color:var(--muted)}
+  .field input, .field select{
+    font-family:inherit;font-size:.86rem;color:var(--ink);
+    border:1px solid var(--line);border-radius:4px;
+    padding:8px 10px;background:#fff;width:100%;
+  }
+  .field input:hover, .field select:hover{border-color:#AEB6C2}
+
+  .checklist{grid-column:1 / -1;display:flex;flex-direction:column;gap:6px}
+  .checklist > label{font-size:.7rem;font-weight:bold;text-transform:uppercase;color:var(--muted)}
+  .checklist-items{display:flex;flex-direction:column;gap:4px}
+  .task{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:#FAFBFC;
+  }
+  .task input[type=checkbox]{width:15px;height:15px;accent-color:var(--otimo);flex:none;cursor:pointer}
+  .task .t-text{flex:1;font-size:.84rem;min-width:130px}
+  .task.done .t-text{text-decoration:line-through;color:var(--muted)}
+  .task input.t-resp{
+    width:130px;font-family:inherit;font-size:.76rem;
+    border:1px solid var(--line);border-radius:4px;padding:4px 7px;background:#fff;
+  }
+  .task .t-date{display:flex;align-items:center;gap:5px}
+  .task .t-date label{font-size:.62rem;font-weight:bold;text-transform:uppercase;color:var(--muted)}
+  .task input[type=date]{
+    font-family:inherit;font-size:.74rem;color:var(--ink);
+    border:1px solid var(--line);border-radius:4px;padding:3px 6px;background:#fff;
+  }
+  .task .t-del{
+    background:transparent;border:none;color:var(--muted);font-size:.95rem;
+    padding:0 4px;line-height:1;
+  }
+  .task .t-del:hover{color:var(--critico)}
+  .task-add{display:flex;gap:8px}
+  .task-add input{
+    flex:1;font-family:inherit;font-size:.84rem;
+    border:1px solid var(--line);border-radius:4px;padding:7px 10px;
+  }
+  .task-add button{
+    background:#fff;border:1px solid var(--line);border-radius:4px;
+    font-size:.79rem;font-weight:bold;padding:0 14px;color:var(--navy);
+  }
+  .task-add button:hover{border-color:var(--navy)}
+
+  .modal-actions{display:flex;gap:10px;margin-top:16px;align-items:center;padding:0 22px}
+  .btn-ghost{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    font-size:.83rem;font-weight:bold;padding:9px 16px;color:var(--muted);
+  }
+  .btn-ghost:hover{border-color:#AEB6C2;color:var(--ink)}
+  .btn-danger{
+    background:transparent;border:none;color:var(--critico);
+    font-size:.78rem;font-weight:bold;margin-right:auto;padding:6px 0;
+  }
+  .btn-danger:hover{text-decoration:underline}
+
+  /* ---------- login ---------- */
+  #login-root{
+    position:fixed;inset:0;z-index:60;background:var(--navy);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  #login-root.show{display:flex}
+  .login-card{
+    background:#fff;border-radius:8px;
+    width:100%;max-width:380px;padding:30px 28px;
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .login-card h2{font-size:1.1rem;font-weight:bold;color:var(--navy)}
+  .login-card p{font-size:.82rem;color:var(--muted);line-height:1.5}
+  .login-card .field input{font-size:.92rem}
+  .login-error{
+    display:none;background:var(--critico-bg);color:var(--critico);
+    border:1px solid #ECC9C6;border-radius:4px;
+    font-size:.79rem;font-weight:bold;padding:9px 12px;
+  }
+  .login-error.show{display:block}
+
+  footer{max-width:1320px;margin:0 auto;padding:0 24px 36px;font-size:.73rem;color:var(--muted)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (max-width:640px){
+    .kpi .value{font-size:1.4rem}
+    main{padding:20px 14px 44px}
+    .form-grid{grid-template-columns:1fr}
+    .col{flex-basis:238px}
+    .mun-stats{margin-left:0;width:100%}
+    .brand{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <button id="btn-menu" title="Abrir/recolher menu" aria-label="Abrir ou recolher o menu lateral">&#9776;</button>
+    <img class="logo" src="data:image/png;base64,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" alt="FGV">
+    <div class="brand">
+      <h1>Acompanhamento de Parcerias</h1>
+      <span class="sub">SuperAção SP · SEDS</span>
+    </div>
+    <span id="sync-pill"><span class="s-dot"></span><span id="sync-text">local</span></span>
+    <button id="btn-logout-top" title="Sair da conta">Sair</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <nav id="nav"></nav>
+  </aside>
+  <main id="app"></main>
+</div>
+
+<div id="modal-root"></div>
+<input type="file" id="file-import" accept="application/json" hidden>
+<input type="file" id="diag-file" accept=".xlsx,.xls,.csv,.tsv" hidden>
+<input type="file" id="interesse-file" accept=".xlsx,.xls,.csv,.tsv" hidden>
+
+<div id="login-root">
+  <form class="login-card" id="login-form">
+    <h2>Acompanhamento de Parcerias</h2>
+    <p>Entre com o e-mail e a senha cadastrados para acessar o painel compartilhado do SuperAção SP.</p>
+    <div class="login-error" id="login-error"></div>
+    <div class="field">
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="email" autocomplete="username" required placeholder="nome@dominio.com">
+    </div>
+    <div class="field">
+      <label for="login-senha">Senha</label>
+      <input id="login-senha" type="password" autocomplete="current-password" required placeholder="Senha">
+    </div>
+    <button class="btn-primary" id="login-btn" type="submit">Entrar</button>
+  </form>
+</div>
+
+<footer>
+  Plataforma de acompanhamento do programa SuperAção SP. Os dados são sincronizados na nuvem após o login; o backup em JSON está disponível em Configurações.
+</footer>
+
+<script>
+/* =========================================================
+   CONFIGURAÇÃO DO SUPABASE
+   ========================================================= */
+const SUPABASE_URL = "https://wvpfesyufuhqdfbvavgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_H5DCfJRoRr3pnsXSgllZgQ_e0EXq9Tl";
+
+/* =========================================================
+   Dados fixos
+   ========================================================= */
+const BLOCOS = {
+  piloto: {
+    nome: "Piloto",
+    municipios: ["Barueri","Cabreúva","Campinas","Embu das Artes","Itaquaquecetuba","Paulínia","São Roque","São Vicente"]
+  },
+  bloco2: {
+    nome: "Bloco 2",
+    municipios: ["Caieiras","Cajamar","Carapicuíba","Cotia","Diadema","Guarulhos","Mauá","Osasco","Santana de Parnaíba","Santo André","São Bernardo do Campo","Taboão da Serra"]
+  },
+  bloco3: {
+    nome: "Bloco 3",
+    municipios: ["Americana","Araras","Cordeirópolis","Elias Fausto","Holambra","Indaiatuba","Iracemápolis","Itatiba","Itu","Itupeva","Jaguariúna","Jarinu","Jundiaí","Limeira","Louveira","Mairinque","Mogi Mirim","Monte Mor","Nova Odessa","Pedreira","Santa Bárbara d'Oeste","Santa Gertrudes","Santo Antônio de Posse","Sumaré","Valinhos","Várzea Paulista","Vinhedo"]
+  }
+};
+
+const ESTADOS = {
+  sem:     { label: "Sem informações", color: "var(--sem)" },
+  critico: { label: "Crítico",         color: "var(--critico)" },
+  bom:     { label: "Bom",             color: "var(--bom)" },
+  otimo:   { label: "Ótimo",           color: "var(--otimo)" }
+};
+const ESTADO_ORDER = ["critico","bom","otimo","sem"];
+
+const COLUNAS = [
+  "Backlog",
+  "1º contato",
+  "2º contato",
+  "Agendamento de reunião",
+  "1ª Reunião",
+  "2ª Reunião",
+  "Comunicação com equipe responsável",
+  "Formalização de Parceria"
+];
+const COL_REUNIAO = "1ª Reunião";
+
+const STATUS = {
+  nao_iniciado: "Não iniciado",
+  em_andamento: "Em andamento",
+  concluido:    "Concluído",
+  atrasado:     "Atrasado",
+  perdido:      "Lead perdido"
+};
+
+const MODULOS = {
+  proteger:    "Proteger",
+  desenvolver: "Desenvolver",
+  incluir:     "Incluir",
+  todos:       "Todos"
+};
+
+const MEIOS_CONTATO = ["E-mail","WhatsApp","Telefone","Presencial","Indicação","Evento","LinkedIn","Outro"];
+
+const PAGAMENTOS = [
+  { key:"pagACP",  label:"Auxílio Capacitação Profissional",  short:"Aux. Capacitação" },
+  { key:"pagIDC",  label:"Incentivo Desenv. de Capacidades",  short:"Incent. Desenv." },
+  { key:"pagIMT1", label:"Inclusão no trabalho · 1ª parcela", short:"Inclusão 1ª parc." },
+  { key:"pagIMT2", label:"Inclusão no trabalho · 2ª parcela", short:"Inclusão 2ª parc." }
+];
+
+const VARIOS = "__varios__";
+// faixas quinquenais (padrão IBGE), da mais velha (topo da pirâmide) à mais nova (base)
+const FAIXAS = ["80+","75-79","70-74","65-69","60-64","55-59","50-54","45-49","40-44","35-39","30-34","25-29","20-24","15-19","10-14","5-9","0-4"];
+const IDADE_ATIVA = 20; // filtro dos gráficos de escolaridade, empreender e qualificação
+const ESCOLARIDADE = [
+  ["sem",   "Sem instrução"],
+  ["fundI", "Ensino Fundamental I"],
+  ["fundII","Ensino Fundamental II"],
+  ["medio", "Ensino Médio"],
+  ["sup",   "Ensino Superior"],
+  ["outros","Outros"]
+];
+function faixaLabel(f){
+  if (f === "80+") return "80 anos ou mais";
+  const [a,b] = f.split("-");
+  return `${a} a ${b} anos`;
+}
+const STORAGE_KEY = "superacao-painel-v4";
+const OLD_KEYS = ["superacao-painel-v3","superacao-painel-v2","superacao-painel-v1"];
+const STATE_ROW_ID = "principal";
+
+/* =========================================================
+   Estado + normalização
+   ========================================================= */
+function defaultMun(){
+  return { estado:"sem", reunioes:0, pagACP:0, pagIDC:0, pagIMT1:0, pagIMT2:0, pdfs:0 };
+}
+function allMunicipios(){ return Object.values(BLOCOS).flatMap(b => b.municipios); }
+function allBoards(){ return allMunicipios().concat([VARIOS]); }
+function blocoOf(mun){
+  for (const [k,b] of Object.entries(BLOCOS)) if (b.municipios.includes(mun)) return k;
+  return null;
+}
+function uid(){
+  return (crypto.randomUUID) ? crypto.randomUUID() : "id-" + Date.now() + "-" + Math.random().toString(36).slice(2,9);
+}
+
+function normalizeLead(l){
+  return {
+    id: l.id || uid(),
+    nome: l.nome || "",
+    instituicao: l.instituicao || "",
+    email: l.email || "",
+    whatsapp: l.whatsapp || "",
+    site: l.site || "",
+    meioContato: l.meioContato || "",
+    ataLink: l.ataLink || "",
+    programa: MODULOS[l.programa] ? l.programa : "",
+    status: STATUS[l.status] ? l.status : "nao_iniciado",
+    coluna: COLUNAS.includes(l.coluna) ? l.coluna : "Backlog",
+    contouReuniao: !!l.contouReuniao,
+    tarefas: Array.isArray(l.tarefas)
+      ? l.tarefas.map(t => ({
+          texto: t.texto || "",
+          feito: !!t.feito,
+          dataConclusao: t.dataConclusao || "",
+          responsavel: t.responsavel || ""
+        }))
+      : []
+  };
+}
+
+function sanitizeState(saved){
+  saved = saved || {};
+  const diag = saved.diag || {};
+  const state = {
+    municipios:{}, leads:{},
+    diag:{
+      atualizadoEm: diag.atualizadoEm || "",
+      interessesImportadoEm: diag.interessesImportadoEm || "",
+      interessesPessoas: Number(diag.interessesPessoas) || 0,
+      pessoasImportadoEm: diag.pessoasImportadoEm || "",
+      pessoasTotal: Number(diag.pessoasTotal) || 0,
+      pessoasSchema: Number(diag.pessoasSchema) || 0
+    },
+    interesses:{},
+    diagPessoas:{}
+  };
+  // demografia (aba DIAGNÓSTICO): mantém apenas municípios conhecidos + "__sem__";
+  // dados de esquema antigo (faixas ou campos diferentes) são descartados — basta reimportar a planilha
+  const srcDP = (state.diag.pessoasSchema === 4) ? (saved.diagPessoas || {}) : {};
+  if (state.diag.pessoasSchema !== 4) {
+    state.diag.pessoasImportadoEm = "";
+    state.diag.pessoasTotal = 0;
+    state.diag.pessoasSchema = 0;
+  }
+  const num0 = v => Math.max(0, Math.round(Number(v)||0));
+  for (const k of allMunicipios().concat(["__sem__"])) {
+    const g = srcDP[k];
+    if (!g || typeof g !== "object") continue;
+    const clean = { faixas:{}, emp:{sim:num0((g.emp||{}).sim), nao:num0((g.emp||{}).nao)}, qual:{sim:num0((g.qual||{}).sim), nao:num0((g.qual||{}).nao)}, esc:{}, total:num0(g.total) };
+    for (const [ek] of ESCOLARIDADE) clean.esc[ek] = num0((g.esc||{})[ek]);
+    for (const f of FAIXAS) {
+      const c = (g.faixas||{})[f] || {};
+      clean.faixas[f] = { f: num0(c.f), m: num0(c.m) };
+    }
+    state.diagPessoas[k] = clean;
+  }
+  const srcInt = saved.interesses || {};
+  const validKeys = allMunicipios().concat(["__sem__"]);
+  for (const k of validKeys) {
+    if (srcInt[k] && typeof srcInt[k] === "object") {
+      const clean = {};
+      for (const [area, n] of Object.entries(srcInt[k])) {
+        const v = Math.max(0, Math.round(Number(n)||0));
+        if (area && v > 0) clean[String(area)] = v;
+      }
+      if (Object.keys(clean).length) state.interesses[k] = clean;
+    }
+  }
+  for (const m of allMunicipios()) {
+    const s = (saved.municipios||{})[m] || {};
+    state.municipios[m] = {
+      estado: ESTADOS[s.estado] ? s.estado : "sem",
+      reunioes: Number(s.reunioes)||0,
+      pagACP:  Number(s.pagACP)||0,
+      pagIDC:  Number(s.pagIDC)||0,
+      pagIMT1: Number(s.pagIMT1)||0,
+      pagIMT2: Number(s.pagIMT2)||0,
+      pdfs:    Number(s.pdfs)||0
+    };
+  }
+  for (const b of allBoards()) {
+    state.leads[b] = Array.isArray((saved.leads||{})[b]) ? saved.leads[b].map(normalizeLead) : [];
+    for (const l of state.leads[b]) {
+      if (l.coluna === COL_REUNIAO && !l.contouReuniao) l.contouReuniao = true;
+    }
+  }
+  return state;
+}
+
+function loadState(){
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e){}
+  if (!saved) {
+    for (const key of OLD_KEYS) {
+      try {
+        const old = JSON.parse(localStorage.getItem(key));
+        if (old) { saved = old.municipios ? old : { municipios: old, leads: {} }; break; }
+      } catch(e){}
+    }
+  }
+  return sanitizeState(saved);
+}
+
+let DATA = loadState();
+let saveTimer = null;
+
+/* =========================================================
+   Sincronização com o Supabase
+   ========================================================= */
+const CLOUD = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+const sb = CLOUD ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let session = null;
+let pushTimer = null;
+let dirty = false;
+let lastFetch = 0;
+
+function setSync(state, text){
+  const pill = document.getElementById("sync-pill");
+  const label = document.getElementById("sync-text");
+  if (!CLOUD) { pill.style.display = "none"; return; }
+  pill.style.display = "inline-flex";
+  pill.className = state;
+  label.textContent = text;
+}
+
+async function pushStateNow(){
+  if (!CLOUD || !session) return;
+  setSync("saving", "salvando…");
+  const { error } = await sb.from("painel_estado").upsert({
+    id: STATE_ROW_ID,
+    dados: DATA,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: session.user.email
+  });
+  if (error) {
+    console.error("Erro ao salvar no Supabase:", error);
+    setSync("off", "offline");
+  } else {
+    dirty = false;
+    setSync("ok", "sincronizado");
+  }
+}
+
+function schedulePush(){
+  if (!CLOUD || !session) return;
+  dirty = true;
+  setSync("saving", "salvando…");
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushStateNow, 1200);
+}
+
+async function fetchStateFromCloud(){
+  const { data, error } = await sb.from("painel_estado")
+    .select("dados").eq("id", STATE_ROW_ID).maybeSingle();
+  if (error) { console.error("Erro ao carregar do Supabase:", error); return { error }; }
+  return { row: data };
+}
+
+async function initCloud(){
+  hideLogin();
+  document.body.classList.add("logged-in");
+  const res = await fetchStateFromCloud();
+  if (res.error) {
+    setSync("off", "offline");
+  } else if (res.row && res.row.dados) {
+    DATA = sanitizeState(res.row.dados);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+    setSync("ok", "sincronizado");
+  } else {
+    await pushStateNow();
+  }
+  lastFetch = Date.now();
+  render();
+}
+
+function showLogin(){
+  document.getElementById("login-root").classList.add("show");
+  document.body.classList.remove("logged-in");
+  setSync("off", "desconectado");
+}
+function hideLogin(){
+  document.getElementById("login-root").classList.remove("show");
+}
+
+document.getElementById("login-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!CLOUD) return;
+  const btn = document.getElementById("login-btn");
+  const errBox = document.getElementById("login-error");
+  errBox.classList.remove("show");
+  btn.disabled = true; btn.textContent = "Entrando…";
+  const { error } = await sb.auth.signInWithPassword({
+    email: document.getElementById("login-email").value.trim(),
+    password: document.getElementById("login-senha").value
+  });
+  btn.disabled = false; btn.textContent = "Entrar";
+  if (error) {
+    errBox.textContent = "Não foi possível entrar. Confira o e-mail e a senha.";
+    errBox.classList.add("show");
+  }
+});
+
+async function logout(){
+  if (dirty) await pushStateNow();
+  await sb.auth.signOut();
+}
+
+document.getElementById("btn-logout-top").addEventListener("click", () => {
+  if (CLOUD && session) logout();
+});
+
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible") return;
+  if (!CLOUD || !session || dirty) return;
+  if (Date.now() - lastFetch < 30000) return;
+  const res = await fetchStateFromCloud();
+  if (!res.error && res.row && res.row.dados) {
+    DATA = sanitizeState(res.row.dados);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+    lastFetch = Date.now();
+    setSync("ok", "sincronizado");
+    if (!document.querySelector(".modal-backdrop")) render();
+  }
+});
+
+/* =========================================================
+   Persistência
+   ========================================================= */
+function persist(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  schedulePush();
+  const hint = document.getElementById("save-hint");
+  if (hint) {
+    hint.innerHTML = CLOUD && session
+      ? "<b>Salvo</b> — sincronizando com a nuvem."
+      : "<b>Salvo</b> automaticamente neste navegador.";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      hint.textContent = CLOUD && session
+        ? "As alterações são sincronizadas automaticamente na nuvem."
+        : "As alterações são salvas automaticamente neste navegador.";
+    }, 2500);
+  }
+}
+
+/* =========================================================
+   Automação: 1ª Reunião soma reuniões do município
+   ========================================================= */
+function applyReuniaoAutomation(board, lead){
+  if (lead.coluna !== COL_REUNIAO || lead.contouReuniao) return;
+  lead.contouReuniao = true;
+  if (board !== VARIOS) {
+    DATA.municipios[board].reunioes = (Number(DATA.municipios[board].reunioes)||0) + 1;
+  }
+}
+
+/* =========================================================
+   Agregações e utilitários
+   ========================================================= */
+function aggregate(municipios){
+  const agg = {
+    reunioes:0, criticos:[], pagACP:0, pagIDC:0, pagIMT1:0, pagIMT2:0, pdfs:0,
+    dist:{critico:0,bom:0,otimo:0,sem:0}, leads:0, parcerias:0
+  };
+  for (const m of municipios){
+    const d = DATA.municipios[m];
+    agg.reunioes += Number(d.reunioes)||0;
+    agg.pagACP   += Number(d.pagACP)||0;
+    agg.pagIDC   += Number(d.pagIDC)||0;
+    agg.pagIMT1  += Number(d.pagIMT1)||0;
+    agg.pagIMT2  += Number(d.pagIMT2)||0;
+    agg.pdfs     += Number(d.pdfs)||0;
+    agg.dist[d.estado] = (agg.dist[d.estado]||0) + 1;
+    if (d.estado === "critico") agg.criticos.push(m);
+    const leads = DATA.leads[m] || [];
+    agg.leads += leads.length;
+    agg.parcerias += leads.filter(l => l.coluna === "Formalização de Parceria").length;
+  }
+  return agg;
+}
+
+const fmt = n => Number(n).toLocaleString("pt-BR");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function brDate(iso){
+  if (!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function taskStats(boards){
+  const hoje = todayISO();
+  const stats = { concluidas:0, atrasadas:0 };
+  for (const b of boards){
+    for (const lead of (DATA.leads[b]||[])){
+      for (const t of lead.tarefas){
+        if (t.feito) stats.concluidas++;
+        else if (t.dataConclusao && t.dataConclusao < hoje) stats.atrasadas++;
+      }
+    }
+  }
+  return stats;
+}
+
+function pendingTasks(boards){
+  const hoje = todayISO();
+  const list = [];
+  for (const b of boards){
+    for (const lead of (DATA.leads[b]||[])){
+      for (const t of lead.tarefas){
+        if (t.feito) continue;
+        const atrasada = t.dataConclusao && t.dataConclusao < hoje;
+        list.push({
+          texto: t.texto,
+          lead: lead.nome || lead.instituicao || "(sem nome)",
+          leadId: lead.id,
+          resp: t.responsavel || "",
+          data: t.dataConclusao || "",
+          board: b,
+          situacao: atrasada ? "atrasado" : "nao"
+        });
+      }
+    }
+  }
+  list.sort((a,b) => {
+    if (a.situacao !== b.situacao) return a.situacao === "atrasado" ? -1 : 1;
+    if (!a.data && !b.data) return 0;
+    if (!a.data) return 1;
+    if (!b.data) return -1;
+    return a.data < b.data ? -1 : a.data > b.data ? 1 : 0;
+  });
+  return list;
+}
+
+/* =========================================================
+   Componentes
+   ========================================================= */
+function kpiHTML(key, label, value, extraClass=""){
+  return `<div class="kpi ${extraClass}"><span class="label">${label}</span><span class="value" data-kpi="${key}">${fmt(value)}</span></div>`;
+}
+
+function heroHTML(agg, opts){
+  opts = opts || {};
+  const leftKey = opts.leftKey || "leads";
+  const leftLabel = opts.leftLabel || "Leads";
+  const leftValue = (opts.leftValue !== undefined) ? opts.leftValue
+    : (leftKey === "leads" ? agg.leads : agg.reunioes);
+  const criticosChips = agg.criticos.length
+    ? `<div class="chips">${agg.criticos.map(m => `<a class="chip" href="#/mun/${encodeURIComponent(m)}">${m}</a>`).join("")}</div>`
+    : `<p class="empty-note">Nenhum município crítico no momento.</p>`;
+  const pagCards = PAGAMENTOS.map(p => kpiHTML(p.key, p.label, agg[p.key], "compact")).join("");
+  return `
+  <div class="hero">
+    <div class="hero-left">
+      ${kpiHTML(leftKey, leftLabel, leftValue)}
+      <div class="hero-criticos">
+        ${kpiHTML("criticos","Municípios em estado crítico",agg.criticos.length,"critico-kpi")}
+        ${criticosChips}
+      </div>
+    </div>
+    <div class="hero-sep" aria-hidden="true"></div>
+    <div class="hero-right">
+      <span class="hero-right-title">Pagamentos Auxílios e Incentivos</span>
+      <div class="hero-pay-grid">${pagCards}</div>
+    </div>
+  </div>`;
+}
+
+function distBarHTML(dist, total, mini=false){
+  const segs = ESTADO_ORDER
+    .filter(k => dist[k] > 0)
+    .map(k => `<div style="width:${(dist[k]/total*100).toFixed(2)}%;background:${ESTADOS[k].color}" title="${ESTADOS[k].label}: ${dist[k]}"></div>`)
+    .join("");
+  if (mini) return `<div class="mini-dist">${segs}</div>`;
+  const legend = ESTADO_ORDER
+    .map(k => `<span><span class="dot" style="background:${ESTADOS[k].color}"></span>${ESTADOS[k].label} · ${dist[k]||0}</span>`)
+    .join("");
+  return `<div class="dist-wrap"><div class="dist-bar">${segs}</div><div class="dist-legend">${legend}</div></div>`;
+}
+
+function boardTag(board){
+  if (board === VARIOS) {
+    return { mun: `<span class="tag-mun">Vários municípios</span>`, bloco: `<span class="tag-bloco">Quadro geral</span>` };
+  }
+  const bl = blocoOf(board);
+  return {
+    mun: `<a class="tag-mun" href="#/mun/${encodeURIComponent(board)}">${esc(board)}</a>`,
+    bloco: `<span class="tag-bloco">${BLOCOS[bl].nome}</span>`
+  };
+}
+
+function overdueTableHTML(){
+  const list = pendingTasks(allBoards());
+  if (!list.length) {
+    return `<p class="empty-note">Nenhuma atividade pendente.</p>`;
+  }
+  const rows = list.map(item => {
+    const tags = boardTag(item.board);
+    const sit = item.situacao === "atrasado"
+      ? `<span class="tag-sit atrasado">Atrasado</span>`
+      : `<span class="tag-sit nao">Não iniciado</span>`;
+    const sub = item.resp ? `${esc(item.lead)} · Responsável: ${esc(item.resp)}` : esc(item.lead);
+    return `
+    <tr class="row-link" data-openboard="${esc(item.board)}" data-openlead="${esc(item.leadId)}" title="Abrir o card deste lead">
+      <td>${esc(item.texto)}<span class="t-lead">${sub}</span></td>
+      <td>${sit}</td>
+      <td class="mono">${item.data ? brDate(item.data) : "—"}</td>
+      <td>${tags.mun}</td>
+      <td>${tags.bloco}</td>
+    </tr>`;
+  }).join("");
+  return `
+  <div class="table-wrap">
+    <table class="tasks-table">
+      <thead>
+        <tr><th>Atividade</th><th>Situação</th><th>Data de conclusão</th><th>Município</th><th>Bloco</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function tableHTML(municipios){
+  const rows = municipios.map(m => {
+    const d = DATA.municipios[m];
+    const leads = DATA.leads[m] || [];
+    const options = ["sem","critico","bom","otimo"]
+      .map(k => `<option value="${k}" ${d.estado===k?"selected":""}>${ESTADOS[k].label}</option>`)
+      .join("");
+    const pagCells = PAGAMENTOS.map(p =>
+      `<td class="num"><span class="pay-val" title="${p.label} — preenchido pela planilha importada em Configurações">${fmt(d[p.key])}</span></td>`
+    ).join("");
+    return `
+    <tr>
+      <td class="mun"><a href="#/mun/${encodeURIComponent(m)}">${m}</a></td>
+      <td>
+        <select class="estado ${d.estado}" data-mun="${esc(m)}" data-field="estado" aria-label="Estado de ${esc(m)}">${options}</select>
+      </td>
+      <td class="num"><input class="qty" type="number" min="0" step="1" value="${d.reunioes}" data-mun="${esc(m)}" data-field="reunioes" aria-label="Reuniões em ${esc(m)}" title="Somado automaticamente quando um lead chega em 1ª Reunião; também pode ser ajustado à mão"></td>
+      ${pagCells}
+      <td class="num"><span class="pdf-count" title="PDFs importados da planilha de pagamentos">${fmt(d.pdfs)}</span></td>
+      <td class="num"><span class="lead-count" title="Contagem automática dos cards do município">${leads.length}</span></td>
+    </tr>`;
+  }).join("");
+
+  const pagHeads = PAGAMENTOS.map(p => `<th class="num">${p.short}</th>`).join("");
+
+  return `
+  <div class="table-wrap">
+    <table class="mun-table">
+      <thead>
+        <tr>
+          <th>Município</th><th>Estado</th>
+          <th class="num">Reuniões</th>
+          ${pagHeads}
+          <th class="num">PDFs</th>
+          <th class="num">Leads</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <p class="save-hint" id="save-hint">Reuniões soma automaticamente quando um lead chega em 1ª Reunião. Pagamentos e PDFs são preenchidos pela planilha importada em Configurações e não podem ser editados aqui. Clique no nome do município para abrir o quadro.</p>`;
+}
+
+/* =========================================================
+   Dados de Diagnóstico: áreas de interesse
+   ========================================================= */
+function interessesAgg(municipios, incluirSem){
+  const agg = {};
+  let registros = 0;
+  const keys = incluirSem ? municipios.concat(["__sem__"]) : municipios;
+  for (const k of keys){
+    const grupo = DATA.interesses[k];
+    if (!grupo) continue;
+    for (const [area, n] of Object.entries(grupo)){
+      agg[area] = (agg[area]||0) + n;
+      registros += n;
+    }
+  }
+  return { agg, registros };
+}
+
+function interessesChartHTML(agg){
+  const items = Object.entries(agg).sort((a,b) => b[1]-a[1]);
+  if (!items.length) return "";
+  const max = items[0][1];
+  const bars = items.map(([area, n]) => `
+    <div class="cbar" title="${esc(area)}: ${fmt(n)}">
+      <div class="c-bararea">
+        <span class="c-val">${fmt(n)}</span>
+        <div class="c-fill" style="height:${Math.max(2, Math.round(n/max*160))}px"></div>
+      </div>
+      <span class="c-label">${esc(area)}</span>
+    </div>`).join("");
+  return `<div class="chart-scroll"><div class="chart">${bars}</div></div>`;
+}
+
+let diagFilterSel = "";
+
+/* agrega a demografia (aba DIAGNÓSTICO) para um conjunto de municípios */
+function pessoasAgg(municipios, incluirSem){
+  const out = { faixas:{}, emp:{sim:0,nao:0}, qual:{sim:0,nao:0}, esc:{}, total:0 };
+  for (const f of FAIXAS) out.faixas[f] = { f:0, m:0 };
+  for (const [ek] of ESCOLARIDADE) out.esc[ek] = 0;
+  const keys = incluirSem ? municipios.concat(["__sem__"]) : municipios;
+  for (const k of keys){
+    const g = DATA.diagPessoas[k];
+    if (!g) continue;
+    out.total += g.total;
+    out.emp.sim += g.emp.sim; out.emp.nao += g.emp.nao;
+    out.qual.sim += g.qual.sim; out.qual.nao += g.qual.nao;
+    for (const [ek] of ESCOLARIDADE) out.esc[ek] += (g.esc||{})[ek]||0;
+    for (const f of FAIXAS){ out.faixas[f].f += (g.faixas[f]||{}).f||0; out.faixas[f].m += (g.faixas[f]||{}).m||0; }
+  }
+  return out;
+}
+
+function pyramidHTML(p){
+  let max = 1;
+  for (const f of FAIXAS) max = Math.max(max, p.faixas[f].f, p.faixas[f].m);
+  const rows = FAIXAS.map(f => {
+    const c = p.faixas[f];
+    const wf = (c.f/max*100).toFixed(1);
+    const wm = (c.m/max*100).toFixed(1);
+    return `
+    <div class="pyr-row">
+      <span class="pyr-faixa">${faixaLabel(f)}</span>
+      <div class="pyr-cell f">
+        ${c.f ? `<span class="p-val">${fmt(c.f)}</span>` : ""}
+        <div class="pyr-bar f" style="width:${wf}%"></div>
+      </div>
+      <div class="pyr-cell m">
+        <div class="pyr-bar m" style="width:${wm}%"></div>
+        ${c.m ? `<span class="p-val">${fmt(c.m)}</span>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+  return `
+  <div class="pyr">
+    ${rows}
+    <div class="pyr-axisrow">
+      <span></span>
+      <div class="pyr-axis"><span>${fmt(max)}</span><span>0</span></div>
+      <div class="pyr-axis m"><span></span><span>${fmt(max)}</span></div>
+    </div>
+  </div>
+  <div class="pyr-legend">
+    <span><span class="sq" style="background:var(--orange)"></span>Feminino</span>
+    <span><span class="sq" style="background:var(--navy)"></span>Masculino</span>
+  </div>`;
+}
+
+function empBarHTML(p){
+  const resp = p.emp.sim + p.emp.nao;
+  if (!resp) return `<p class="empty-note" style="margin-top:10px">Sem respostas de pessoas em idade ativa para esta seleção.</p>`;
+  const pSim = Math.round(p.emp.sim/resp*100);
+  const pNao = 100 - pSim;
+  return `
+  <div class="pctbars">
+    <div class="pctbar">
+      <div class="p-head"><span>Sim, gostaria de empreender</span><b>${pSim}% (${fmt(p.emp.sim)})</b></div>
+      <div class="p-track"><div class="p-fill" style="width:${pSim}%"></div></div>
+    </div>
+    <div class="pctbar neg">
+      <div class="p-head"><span>Não</span><b>${pNao}% (${fmt(p.emp.nao)})</b></div>
+      <div class="p-track"><div class="p-fill" style="width:${pNao}%"></div></div>
+    </div>
+  </div>
+  <p class="chart-note" style="margin-top:8px">Percentuais entre ${fmt(resp)} respondentes com ${IDADE_ATIVA} anos ou mais (idade ativa).</p>`;
+}
+
+function pieHTML(p){
+  const resp = p.qual.sim + p.qual.nao;
+  if (!resp) return `<p class="empty-note" style="margin-top:10px">Sem respostas de pessoas em idade ativa para esta seleção.</p>`;
+  const pSim = Math.round(p.qual.sim/resp*100);
+  const pNao = 100 - pSim;
+
+  const cx = 60, cy = 60, r = 56;
+  const pt = a => { const rad = a*Math.PI/180; return `${(cx + r*Math.cos(rad)).toFixed(2)} ${(cy + r*Math.sin(rad)).toFixed(2)}`; };
+  const lbl = (aMid, pct) => {
+    if (pct < 8) return ""; // fatia estreita demais para texto interno
+    const rad = aMid*Math.PI/180, rl = r*0.58;
+    return `<text x="${(cx + rl*Math.cos(rad)).toFixed(1)}" y="${(cy + rl*Math.sin(rad)).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="14">${pct}%</text>`;
+  };
+
+  let svg;
+  if (pSim >= 100 || pNao >= 100) {
+    const cor = pSim >= 100 ? "var(--blue)" : "var(--orange)";
+    svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${cor}"></circle>
+           <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="15">100%</text>`;
+  } else {
+    const a0 = -90, aSplit = a0 + pSim/100*360;
+    const largeSim = pSim > 50 ? 1 : 0;
+    svg = `
+      <path d="M ${cx} ${cy} L ${pt(a0)} A ${r} ${r} 0 ${largeSim} 1 ${pt(aSplit)} Z" fill="var(--blue)"></path>
+      <path d="M ${cx} ${cy} L ${pt(aSplit)} A ${r} ${r} 0 ${largeSim ? 0 : 1} 1 ${pt(a0 + 360)} Z" fill="var(--orange)"></path>
+      ${lbl(a0 + pSim/100*180, pSim)}
+      ${lbl(aSplit + pNao/100*180, pNao)}`;
+  }
+
+  return `
+  <div class="pie-center">
+    <svg class="pie-svg" viewBox="0 0 120 120" role="img" aria-label="Sim ${pSim}%, Não ${pNao}%">${svg}</svg>
+    <div class="pie-legend">
+      <span><span class="sq" style="background:var(--blue)"></span>Sim <b>${fmt(p.qual.sim)}</b></span>
+      <span><span class="sq" style="background:var(--orange)"></span>Não <b>${fmt(p.qual.nao)}</b></span>
+    </div>
+    <p class="chart-note" style="margin:0">Percentuais entre ${fmt(resp)} respondentes com ${IDADE_ATIVA} anos ou mais (idade ativa).</p>
+  </div>`;
+}
+
+function escolBarHTML(p){
+  const grupos = ESCOLARIDADE.filter(([k]) => k !== "outros" || p.esc.outros > 0);
+  const resp = grupos.reduce((a,[k]) => a + p.esc[k], 0);
+  if (!resp) return `<p class="empty-note" style="margin-top:10px">Sem respostas de escolaridade de pessoas em idade ativa para esta seleção.</p>`;
+  const max = Math.max(...grupos.map(([k]) => p.esc[k]), 1);
+  let topKey = grupos[0][0];
+  for (const [k] of grupos) if (p.esc[k] > p.esc[topKey]) topKey = k;
+  const bars = grupos.map(([k, label]) => {
+    const n = p.esc[k];
+    const pct = Math.round(n/resp*100);
+    return `
+    <div class="escbar ${k === topKey ? "top" : ""}" title="${esc(label)}: ${fmt(n)} (${pct}%)">
+      <span class="e-val">${fmt(n)}</span>
+      <span class="e-pct">${pct}%</span>
+      <div class="e-fill" style="height:${Math.max(2, Math.round(n/max*120))}px"></div>
+      <span class="e-label">${esc(label)}</span>
+    </div>`;
+  }).join("");
+  return `
+  <div class="escbars">${bars}</div>
+  <p class="chart-note" style="margin-top:10px">Grau mais elevado frequentado, agrupado (EJA e Especial contam no grau correspondente). Percentuais entre ${fmt(resp)} respondentes com ${IDADE_ATIVA} anos ou mais (idade ativa).</p>`;
+}
+
+function diagChartBodyHTML(municipios, incluirSem){
+  let escopo = municipios, filtroLabel = "";
+  let semAtivo = incluirSem;
+  if (diagFilterSel === "__sem__" && incluirSem) {
+    escopo = []; semAtivo = true; filtroLabel = "Sem município";
+  } else if (diagFilterSel && municipios.includes(diagFilterSel)) {
+    escopo = [diagFilterSel]; semAtivo = false; filtroLabel = diagFilterSel;
+  } else {
+    semAtivo = incluirSem; // sem filtro
+  }
+  const usarSem = semAtivo && (diagFilterSel === "__sem__" || !diagFilterSel);
+
+  /* --- áreas de interesse --- */
+  const { agg, registros } = interessesAgg(escopo, usarSem);
+  let areasBlock;
+  if (!registros) {
+    areasBlock = `<p class="empty-note" style="padding:6px 0 4px">Sem registros de áreas de interesse para ${filtroLabel ? esc(filtroLabel) : "esta seleção"}.</p>`;
+  } else {
+    const areas = Object.keys(agg).length;
+    const pessoasTot = !diagFilterSel && incluirSem && DATA.diag.interessesPessoas
+      ? ` · ${fmt(DATA.diag.interessesPessoas)} pessoas` : "";
+    areasBlock = `
+      <p class="chart-meta" style="display:block;margin-bottom:2px">${fmt(registros)} registros · ${areas} áreas${pessoasTot}</p>
+      <p class="chart-note">Uma pessoa pode indicar mais de uma área de interesse.</p>
+      ${interessesChartHTML(agg)}`;
+  }
+
+  /* --- demografia (aba DIAGNÓSTICO) --- */
+  let demoBlock = "";
+  if (Object.keys(DATA.diagPessoas).length) {
+    const p = pessoasAgg(escopo, usarSem);
+    if (!p.total) {
+      demoBlock = `
+      <div class="diag-sub">
+        <p class="empty-note">Sem dados de perfil para ${filtroLabel ? esc(filtroLabel) : "esta seleção"}.</p>
+      </div>`;
+    } else {
+      demoBlock = `
+      <div class="diag-sub">
+        <div class="diag-sub-title">Perfil dos beneficiários — sexo e faixa de idade</div>
+        <p class="chart-note">${fmt(p.total)} pessoa(s)${DATA.diag.pessoasImportadoEm ? ` · importado em ${brDate(DATA.diag.pessoasImportadoEm)}` : ""}</p>
+        ${pyramidHTML(p)}
+      </div>
+      <div class="diag-sub">
+        <div class="diag-sub-title">Grau de escolaridade</div>
+        ${escolBarHTML(p)}
+      </div>
+      <div class="diag-grid">
+        <div>
+          <div class="diag-sub-title">Interesse em empreender</div>
+          ${empBarHTML(p)}
+        </div>
+        <div>
+          <div class="diag-sub-title">Interesse em curso de qualificação</div>
+          ${pieHTML(p)}
+        </div>
+      </div>`;
+    }
+  } else {
+    demoBlock = `
+    <div class="diag-sub">
+      <p class="empty-note">Os gráficos de perfil (sexo e idade, escolaridade, empreendedorismo e qualificação) aparecem após importar a planilha com a aba DIAGNÓSTICO em <a href="#/config">Configurações</a>.</p>
+    </div>`;
+  }
+
+  return `
+    <div class="diag-sub" style="border-top:none;margin-top:4px;padding-top:0">
+      <div class="diag-sub-title">Áreas de interesse</div>
+      ${areasBlock}
+    </div>
+    ${demoBlock}`;
+}
+
+function diagSectionHTML(municipios, scopeLabel, incluirSem){
+  const temInteresses = Object.keys(DATA.interesses).length > 0;
+  const temPessoas = Object.keys(DATA.diagPessoas).length > 0;
+  if (!temInteresses && !temPessoas) {
+    return `
+    <div class="diag-area">
+      <span class="diag-title">Dados de Diagnóstico${scopeLabel ? " · " + scopeLabel : ""}</span>
+      <span class="diag-note">Nenhuma planilha de diagnóstico importada ainda. Importe em <a href="#/config">Configurações</a>.</span>
+    </div>`;
+  }
+  const temDadosMun = m => DATA.interesses[m] || DATA.diagPessoas[m];
+  const comDados = municipios.filter(temDadosMun).sort((a,b) => a.localeCompare(b, "pt-BR"));
+  const temSem = DATA.interesses["__sem__"] || DATA.diagPessoas["__sem__"];
+  const semOption = incluirSem && temSem
+    ? `<option value="__sem__" ${diagFilterSel==="__sem__"?"selected":""}>Sem município</option>` : "";
+  const options = `
+    <option value="">Todos os municípios</option>
+    ${comDados.map(m => `<option value="${esc(m)}" ${diagFilterSel===m?"selected":""}>${esc(m)}</option>`).join("")}
+    ${semOption}`;
+  return `
+  <div class="chart-card">
+    <div class="chart-head">
+      <span class="chart-title">Dados de Diagnóstico${scopeLabel ? " · " + scopeLabel : ""}</span>
+      <select class="diag-select" id="diag-filter" aria-label="Filtrar dados de diagnóstico por município">${options}</select>
+    </div>
+    <div id="diag-chart-body">${diagChartBodyHTML(municipios, incluirSem)}</div>
+  </div>`;
+}
+
+/* =========================================================
+   Views
+   ========================================================= */
+function renderHome(){
+  const munAll = allMunicipios();
+  const agg = aggregate(munAll);
+  const variosLeads = DATA.leads[VARIOS] || [];
+  const variosParcerias = variosLeads.filter(l => l.coluna === "Formalização de Parceria").length;
+  const totalLeads = agg.leads + variosLeads.length;
+
+  const blocoCards = Object.entries(BLOCOS).map(([key,b]) => {
+    const a = aggregate(b.municipios);
+    return `
+    <a class="bloco-btn" href="#/${key}">
+      <span class="name">${b.nome}</span>
+      <span class="meta">${b.municipios.length} municípios · ${a.leads} lead(s) · ${a.criticos.length} crítico(s) · ${a.parcerias} parceria(s)</span>
+      ${distBarHTML(a.dist, b.municipios.length, true)}
+      <span class="go">Abrir painel</span>
+    </a>`;
+  }).join("") + `
+    <a class="bloco-btn varios" href="#/varios">
+      <span class="name">Vários municípios</span>
+      <span class="meta">quadro geral · ${variosLeads.length} lead(s) · ${variosParcerias} parceria(s)</span>
+      <span class="go">Abrir quadro</span>
+    </a>`;
+
+  const tasks = taskStats(allBoards());
+
+  return `
+    <div class="view-title"><h2>Visão geral</h2><span class="count">${munAll.length} municípios · 3 blocos · ${totalLeads} leads · ${agg.parcerias + variosParcerias} parceria(s) formalizada(s)</span></div>
+    <p class="view-sub">Consolidado de todos os blocos do programa.</p>
+    ${heroHTML(agg, { leftKey:"leads", leftLabel:"Leads", leftValue: totalLeads })}
+    ${distBarHTML(agg.dist, munAll.length)}
+    <div class="section-label">Blocos</div>
+    <div class="blocos">${blocoCards}</div>
+    <div class="section-label">Atividades</div>
+    <div class="kpis">
+      <div class="kpi otimo-kpi"><span class="label">Atividades concluídas</span><span class="value" data-kpi="concluidas">${fmt(tasks.concluidas)}</span></div>
+      <div class="kpi atraso-kpi"><span class="label">Atividades atrasadas</span><span class="value" data-kpi="atrasadas">${fmt(tasks.atrasadas)}</span></div>
+    </div>
+    ${overdueTableHTML()}
+    <div class="section-label">Dados de Diagnóstico</div>
+    ${diagSectionHTML(munAll, "", true)}
+  `;
+}
+
+function renderBloco(key){
+  const b = BLOCOS[key];
+  const agg = aggregate(b.municipios);
+  return `
+    <div class="view-title"><h2>${b.nome}</h2><span class="count">${b.municipios.length} municípios · ${agg.leads} leads · ${agg.parcerias} parceria(s)</span></div>
+    <p class="view-sub">Indicadores calculados apenas com os municípios deste bloco.</p>
+    ${heroHTML(agg, { leftKey:"leads", leftLabel:"Leads" })}
+    ${distBarHTML(agg.dist, b.municipios.length)}
+    <div class="section-label">Municípios</div>
+    ${tableHTML(b.municipios)}
+    <div class="section-label">Dados de Diagnóstico</div>
+    ${diagSectionHTML(b.municipios, b.nome, false)}
+  `;
+}
+
+function renderConfig(){
+  const atualizado = DATA.diag.atualizadoEm
+    ? `Última planilha importada: <b>${esc(DATA.diag.atualizadoEm)}</b>`
+    : `<b>Nenhuma planilha importada ainda.</b>`;
+  const cloudCard = CLOUD
+    ? `
+    <div class="config-card">
+      <h3>Sincronização na nuvem</h3>
+      <p>Conectado como <b>${esc(session ? session.user.email : "—")}</b>. As alterações são salvas automaticamente no banco e aparecem em qualquer computador após o login. O indicador no topo mostra o estado da sincronização; o botão Sair fica no canto superior direito.</p>
+    </div>`
+    : `
+    <div class="config-card">
+      <h3>Sincronização na nuvem</h3>
+      <p><b>Modo local.</b> O painel não está conectado ao banco — os dados ficam salvos apenas neste navegador. Preencha as constantes SUPABASE_URL e SUPABASE_ANON_KEY no início do index.html, conforme o guia de implantação.</p>
+    </div>`;
+  return `
+    <div class="view-title"><h2>Configurações</h2></div>
+    <p class="view-sub">Sincronização, importação de dados e manutenção do painel.</p>
+    ${cloudCard}
+    <div class="config-card">
+      <h3>Planilha de pagamentos</h3>
+      <p>Importe a planilha exportada do Teams/SharePoint com as colunas de município, Bloco, PDFs e os quatro tipos de pagamento. A importação atualiza os valores de todos os municípios de uma vez — é a única forma de preencher os números de pagamento, que não podem ser editados nas tabelas. A leitura é feita localmente, no seu navegador.</p>
+      <span class="config-meta">${atualizado}</span>
+      <div class="config-actions">
+        <button class="btn-primary" id="btn-diag-import">Importar planilha (.xlsx / .csv)</button>
+      </div>
+    </div>
+    <div class="config-card">
+      <h3>Planilha de diagnóstico (abas PDF + DIAGNÓSTICO)</h3>
+      <p>Importe a planilha de diagnóstico. A aba <b>PDF</b> (tabela "Área de interesse e município") alimenta o gráfico de áreas de interesse; a aba <b>DIAGNÓSTICO</b> (uma linha por pessoa, com sexo, data de nascimento, município e escolaridade e as perguntas sobre empreender e qualificação) alimenta a pirâmide etária, o gráfico de escolaridade e os gráficos de percentual. As abas são reconhecidas pelo conteúdo — a importação atualiza apenas o que encontrar no arquivo e aceita também CSV.</p>
+      <span class="config-meta">${DATA.diag.interessesImportadoEm ? `Áreas de interesse: <b>${brDate(DATA.diag.interessesImportadoEm)}</b> · ${fmt(DATA.diag.interessesPessoas)} pessoas` : "<b>Áreas de interesse ainda não importadas.</b>"}<br>${DATA.diag.pessoasImportadoEm ? `Diagnóstico (perfil): <b>${brDate(DATA.diag.pessoasImportadoEm)}</b> · ${fmt(DATA.diag.pessoasTotal)} pessoas` : "<b>Aba DIAGNÓSTICO ainda não importada.</b>"}</span>
+      <div class="config-actions">
+        <button class="btn-primary" id="btn-interesse-import">Importar planilha (.xlsx / .csv)</button>
+      </div>
+    </div>
+    <div class="config-card">
+      <h3>Backup dos dados do painel</h3>
+      <p><b>Exportar dados</b> gera um arquivo JSON com tudo (indicadores, leads, checklists, pagamentos e áreas de interesse importadas). <b>Importar dados</b> restaura esse arquivo. <b>Limpar</b> apaga os dados do painel${CLOUD ? " — inclusive no banco compartilhado" : ""}. ${CLOUD ? "Mesmo com a nuvem ativa, vale exportar um backup de tempos em tempos: o plano gratuito do Supabase não faz backups automáticos. O arquivo contém dados de contato; guarde em local privado." : ""}</p>
+      <div class="config-actions">
+        <button class="btn-secondary" id="btn-export">Exportar dados</button>
+        <button class="btn-secondary" id="btn-import">Importar dados</button>
+        <button class="btn-secondary" id="btn-reset" style="color:var(--critico)">Limpar</button>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   Kanban
+   ========================================================= */
+function cardHTML(lead){
+  const total = lead.tarefas.length;
+  const done = lead.tarefas.filter(t => t.feito).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const tasks = total
+    ? `<span class="c-tasks"><span class="bar"><div style="width:${pct}%"></div></span>${done}/${total}</span>`
+    : "";
+  const prog = lead.programa
+    ? `<span class="tag-prog ${lead.programa}">${MODULOS[lead.programa]}</span>` : "";
+  return `
+  <div class="card" draggable="true" data-lead="${lead.id}" role="button" tabindex="0" aria-label="Lead ${esc(lead.nome)}">
+    <span class="c-nome">${esc(lead.nome) || "(sem nome)"}</span>
+    ${lead.instituicao ? `<span class="c-inst">${esc(lead.instituicao)}</span>` : ""}
+    <span class="c-foot">
+      ${prog}
+      <span class="status-pill ${lead.status}">${STATUS[lead.status]}</span>
+      ${tasks}
+    </span>
+    ${lead.ataLink ? `<a class="c-ata" href="${esc(lead.ataLink)}" target="_blank" rel="noopener noreferrer" title="Abrir ata de reunião no Teams">Ata de reunião ↗</a>` : ""}
+  </div>`;
+}
+
+function boardHTML(board){
+  const leads = DATA.leads[board] || [];
+  const cols = COLUNAS.map(col => {
+    const colLeads = leads.filter(l => l.coluna === col);
+    const cards = colLeads.length
+      ? colLeads.map(cardHTML).join("")
+      : `<div class="col-empty">Arraste um card ou clique em +</div>`;
+    return `
+    <div class="col" data-col="${esc(col)}">
+      <div class="col-head">
+        <span class="col-name">${esc(col)}</span>
+        <span class="col-count">${colLeads.length}</span>
+        <button class="col-add" data-addcol="${esc(col)}" title="Novo lead em ${esc(col)}" aria-label="Novo lead em ${esc(col)}">+</button>
+      </div>
+      <div class="col-cards">${cards}</div>
+    </div>`;
+  }).join("");
+
+  return `
+    <div class="board-toolbar">
+      <button class="btn-primary" id="btn-new-lead">+ Novo lead</button>
+      <span class="board-scroll-hint">Arraste os cards entre as etapas · clique no card para editar</span>
+    </div>
+    <div class="board" id="board" data-mun="${esc(board)}">${cols}</div>
+    <p class="save-hint" id="save-hint">As alterações são salvas automaticamente.</p>`;
+}
+
+function renderMunicipio(mun){
+  const bloco = blocoOf(mun);
+  const d = DATA.municipios[mun];
+  const leads = DATA.leads[mun] || [];
+  const parcerias = leads.filter(l => l.coluna === "Formalização de Parceria").length;
+
+  const estadoOptions = ["sem","critico","bom","otimo"]
+    .map(k => `<option value="${k}" ${d.estado===k?"selected":""}>${ESTADOS[k].label}</option>`)
+    .join("");
+
+  return `
+    <a class="back-link" href="#/${bloco}">‹ Voltar para ${BLOCOS[bloco].nome}</a>
+    <div class="mun-head">
+      <h2>${esc(mun)}</h2>
+      <span class="bloco-tag">${BLOCOS[bloco].nome}</span>
+      <select class="estado ${d.estado}" data-mun="${esc(mun)}" data-field="estado" aria-label="Estado de ${esc(mun)}">${estadoOptions}</select>
+      <span class="mun-stats">${fmt(d.reunioes)} reunião(ões) · ${fmt(d.pdfs)} PDF(s) · ${leads.length} lead(s) · ${parcerias} parceria(s)</span>
+    </div>
+    ${boardHTML(mun)}
+  `;
+}
+
+function renderVarios(){
+  const leads = DATA.leads[VARIOS] || [];
+  const parcerias = leads.filter(l => l.coluna === "Formalização de Parceria").length;
+  return `
+    <a class="back-link" href="#/">‹ Voltar para a visão geral</a>
+    <div class="mun-head">
+      <h2>Vários municípios</h2>
+      <span class="bloco-tag">Quadro geral</span>
+      <span class="mun-stats">${leads.length} lead(s) · ${parcerias} parceria(s)</span>
+    </div>
+    <p class="view-sub">Leads que atuam em mais de um município ou ainda não têm município definido. Os cards deste quadro não entram nas tabelas dos blocos.</p>
+    ${boardHTML(VARIOS)}
+  `;
+}
+
+/* =========================================================
+   Router + menu lateral
+   ========================================================= */
+function parseRoute(){
+  const h = location.hash.replace(/^#\/?/, "");
+  if (h.startsWith("mun/")) {
+    const mun = decodeURIComponent(h.slice(4));
+    if (allMunicipios().includes(mun)) return { view:"mun", mun };
+  }
+  if (h === "varios") return { view:"varios" };
+  if (h === "config") return { view:"config" };
+  if (["piloto","bloco2","bloco3"].includes(h)) return { view:"bloco", key:h };
+  return { view:"home" };
+}
+
+function renderNav(){
+  const r = parseRoute();
+  const activeKey =
+    r.view === "bloco"  ? r.key :
+    r.view === "mun"    ? blocoOf(r.mun) :
+    r.view === "varios" ? "varios" :
+    r.view === "config" ? "config" : "";
+  const subItems = [
+    ["piloto", "Piloto"],
+    ["bloco2", "Bloco 2"],
+    ["bloco3", "Bloco 3"],
+    ["varios", "Vários municípios"]
+  ];
+  const subs = subItems
+    .map(([k,label]) => `<a href="#/${k}" class="sub ${activeKey===k?"active":""}">${label}</a>`)
+    .join("");
+  document.getElementById("nav").innerHTML = `
+    <a href="#/" class="${activeKey===""?"active":""}">Visão geral</a>
+    ${subs}
+    <div class="nav-sep"></div>
+    <a href="#/config" class="${activeKey==="config"?"active":""}">Configurações</a>
+  `;
+}
+
+function render(){
+  renderNav();
+  const r = parseRoute();
+  const app = document.getElementById("app");
+  if (r.view === "mun") app.innerHTML = renderMunicipio(r.mun);
+  else if (r.view === "varios") app.innerHTML = renderVarios();
+  else if (r.view === "config") app.innerHTML = renderConfig();
+  else if (r.view === "bloco") app.innerHTML = renderBloco(r.key);
+  else app.innerHTML = renderHome();
+}
+
+let pendingOpenLead = null;
+
+function gotoLead(board, leadId){
+  const target = board === VARIOS ? "#/varios" : "#/mun/" + encodeURIComponent(board);
+  if (location.hash === target) {
+    render();
+    openLeadModal(board, leadId);
+  } else {
+    pendingOpenLead = { board, leadId };
+    location.hash = target;
+  }
+}
+
+window.addEventListener("hashchange", () => {
+  diagFilterSel = "";
+  closeModal();
+  render();
+  if (pendingOpenLead) {
+    const { board, leadId } = pendingOpenLead;
+    pendingOpenLead = null;
+    if ((DATA.leads[board]||[]).some(l => l.id === leadId)) openLeadModal(board, leadId);
+  }
+});
+
+document.getElementById("btn-menu").addEventListener("click", () => {
+  if (window.matchMedia("(max-width:899px)").matches) {
+    document.body.classList.toggle("menu-open-mobile");
+  } else {
+    document.body.classList.toggle("menu-closed");
+  }
+});
+document.getElementById("nav").addEventListener("click", e => {
+  if (e.target.closest("a") && window.matchMedia("(max-width:899px)").matches) {
+    document.body.classList.remove("menu-open-mobile");
+  }
+});
+
+/* =========================================================
+   Edição inline (tabelas e estado do município)
+   ========================================================= */
+document.getElementById("app").addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "diag-filter") {
+    diagFilterSel = el.value;
+    const r = parseRoute();
+    const body = document.getElementById("diag-chart-body");
+    if (body) {
+      if (r.view === "bloco") body.innerHTML = diagChartBodyHTML(BLOCOS[r.key].municipios, false);
+      else body.innerHTML = diagChartBodyHTML(allMunicipios(), true);
+    }
+    return;
+  }
+  const mun = el.dataset.mun;
+  if (!mun || !el.dataset.field) return;
+  const field = el.dataset.field;
+  if (field === "estado") {
+    DATA.municipios[mun].estado = el.value;
+    el.className = "estado " + el.value;
+  } else if (field === "reunioes") {
+    DATA.municipios[mun].reunioes = Math.max(0, parseInt(el.value,10) || 0);
+  } else {
+    return; // pagamentos e PDFs vêm da planilha importada
+  }
+  persist();
+  refreshAggregates();
+});
+
+function refreshAggregates(){
+  const r = parseRoute();
+  if (r.view !== "home" && r.view !== "bloco") return;
+  const municipios = r.view === "bloco" ? BLOCOS[r.key].municipios : allMunicipios();
+  const agg = aggregate(municipios);
+  const setKpi = (key, val) => {
+    const el = document.querySelector(`.kpi .value[data-kpi="${key}"]`);
+    if (el) el.textContent = fmt(val);
+  };
+  setKpi("reunioes", agg.reunioes);
+  setKpi("leads", r.view === "home" ? agg.leads + (DATA.leads[VARIOS]||[]).length : agg.leads);
+  setKpi("criticos", agg.criticos.length);
+  for (const p of PAGAMENTOS) setKpi(p.key, agg[p.key]);
+  if (r.view === "home") {
+    const tasks = taskStats(allBoards());
+    setKpi("concluidas", tasks.concluidas);
+    setKpi("atrasadas", tasks.atrasadas);
+  }
+  const distWrap = document.querySelector(".dist-wrap");
+  if (distWrap) distWrap.outerHTML = distBarHTML(agg.dist, municipios.length);
+}
+
+/* =========================================================
+   Importação da planilha de pagamentos
+   ========================================================= */
+function normName(s){
+  return String(s).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[´`’'ºª]/g, m => (m==="ª" ? "a" : m==="º" ? "o" : ""))
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+const MUN_LOOKUP = (() => {
+  const map = {};
+  for (const m of allMunicipios()) map[normName(m)] = m;
+  return map;
+})();
+
+function importDiagWorkbook(wb){
+  let rows = null, hIdx = -1, abaUsada = "";
+  const cols = {};
+  for (const sheetName of wb.SheetNames){
+    const candidate = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, defval:"" });
+    for (let i = 0; i < Math.min(candidate.length, 20); i++){
+      const norm = candidate[i].map(c => normName(c));
+      if (norm.includes("bloco") && norm.some(c => c.includes("pdf"))){
+        rows = candidate; hIdx = i; abaUsada = sheetName;
+        norm.forEach((c, j) => {
+          if (c.includes("pdf")) cols.pdfs = j;
+          else if (c.includes("capacitacao")) cols.pagACP = j;
+          else if (c.includes("capacidades") || c.includes("incentivo")) cols.pagIDC = j;
+          else if (c.includes("parcela") && c.includes("1")) cols.pagIMT1 = j;
+          else if (c.includes("parcela") && c.includes("2")) cols.pagIMT2 = j;
+        });
+        break;
+      }
+    }
+    if (hIdx !== -1) break;
+  }
+  if (hIdx === -1) {
+    alert("Não encontrei o cabeçalho esperado em nenhuma aba da planilha (colunas Bloco e PDFs). Verifique se é o arquivo de pagamentos.");
+    return;
+  }
+
+  for (let i = 0; i <= hIdx; i++){
+    for (const cell of rows[i]){
+      const m = normName(cell).match(/data de atualizacao[:\s]*(.+)/);
+      if (m && m[1]) { DATA.diag.atualizadoEm = String(cell).split(/:\s*/).slice(1).join(": ").trim() || m[1].trim(); }
+    }
+  }
+
+  const num = v => {
+    const n = parseInt(String(v).replace(/\./g,"").trim(), 10);
+    return isNaN(n) ? 0 : Math.max(0, n);
+  };
+
+  let atualizados = 0;
+  const naoEncontrados = [];
+  for (let i = hIdx + 1; i < rows.length; i++){
+    const nome = String(rows[i][0] || "").trim();
+    if (!nome) continue;
+    const norm = normName(nome);
+    if (norm.startsWith("total")) continue;
+    const canon = MUN_LOOKUP[norm];
+    if (!canon) { naoEncontrados.push(nome); continue; }
+    const d = DATA.municipios[canon];
+    if (cols.pdfs    !== undefined) d.pdfs    = num(rows[i][cols.pdfs]);
+    if (cols.pagACP  !== undefined) d.pagACP  = num(rows[i][cols.pagACP]);
+    if (cols.pagIDC  !== undefined) d.pagIDC  = num(rows[i][cols.pagIDC]);
+    if (cols.pagIMT1 !== undefined) d.pagIMT1 = num(rows[i][cols.pagIMT1]);
+    if (cols.pagIMT2 !== undefined) d.pagIMT2 = num(rows[i][cols.pagIMT2]);
+    atualizados++;
+  }
+
+  persist();
+  render();
+  let msg = `Planilha importada (aba "${abaUsada}"): ${atualizados} município(s) atualizado(s).`;
+  if (DATA.diag.atualizadoEm) msg += `\nData de atualização: ${DATA.diag.atualizadoEm}.`;
+  if (naoEncontrados.length) msg += `\nNão reconhecidos (ignorados): ${naoEncontrados.join(", ")}.`;
+  alert(msg);
+}
+
+/* =========================================================
+   Importação da planilha de diagnóstico
+   Aceita um arquivo com as abas "PDF" (tabela dinâmica de áreas
+   de interesse) e/ou "DIAGNÓSTICO" (uma linha por pessoa: sexo,
+   data de nascimento, município, interesse em empreender e em
+   qualificação). Cada aba é detectada pelo cabeçalho, não pelo nome.
+   ========================================================= */
+function faixaEtaria(idade){
+  if (idade < 0 || idade > 115 || isNaN(idade)) return null;
+  if (idade >= 80) return "80+";
+  const lo = Math.floor(idade/5)*5;
+  return `${lo}-${lo+4}`;
+}
+
+function parseSimNao(v){
+  const n = normName(v);
+  if (n === "sim") return "sim";
+  if (n === "nao") return "nao";
+  return null; // vazio, "sim, não" e afins não contam como resposta
+}
+
+/* agrupa o curso mais elevado em graus de escolaridade
+   (a ordem dos testes importa: "Fundamental 5ª a 8ª... Médio 1º ciclo" contém "médio") */
+function classifyEscolaridade(v){
+  const n = normName(v);
+  if (!n) return null; // sem resposta
+  if (n.includes("superior") || n.includes("mestrado") || n.includes("doutorado")) return "sup";
+  if (n.includes("fundamental")) {
+    // etapa: anos iniciais (1ª a 4ª) = Fundamental I; anos finais (5ª a 8ª / ginasial) = Fundamental II
+    if (n.includes("5a a 8a") || n.includes("finais") || n.includes("ginasial")) return "fundII";
+    if (n.includes("1a a 4a") || n.includes("iniciais") || n.includes("elementar") || n.includes("primario")) return "fundI";
+    if (n.includes("9 anos")) return "fundII"; // ciclo completo de 9 anos abrange os anos finais
+    return "fundI"; // sem etapa declarada (ex.: Fundamental Especial): assume a etapa inicial
+  }
+  if (n.includes("medio")) return "medio"; // médio regular, EJA e Especial
+  if (n.includes("nenhum") || n.includes("creche") || n.includes("pre-escola") || n.includes("pre escola") || n.includes("alfabetizacao") || n.includes("mobral")) return "sem";
+  return "outros";
+}
+
+function importPessoasSheet(rows, hIdx){
+  const header = rows[hIdx].map(c => normName(c));
+  const col = {};
+  header.forEach((h, j) => {
+    if (h === "sexo") col.sexo = j;
+    else if (h.includes("nascimento")) col.nasc = j;
+    else if (h.includes("municipio")) col.mun = j;
+    else if (h.includes("curso mais elevado") || h.includes("escolaridade")) col.escol = j;
+    else if (h.includes("negocio") || h.includes("empreend")) col.emp = j;
+    else if (h.includes("qualificacao")) col.qual = j;
+  });
+  if (col.sexo === undefined || col.mun === undefined) return null;
+
+  const hoje = new Date();
+  const diagPessoas = {};
+  const gruposDesconhecidos = new Set();
+  let total = 0;
+
+  const grupoDe = nome => {
+    const n = normName(nome);
+    if (!n) return "__sem__";
+    if (MUN_LOOKUP[n]) return MUN_LOOKUP[n];
+    gruposDesconhecidos.add(nome);
+    return "__sem__";
+  };
+  const blank = () => {
+    const g = { faixas:{}, emp:{sim:0,nao:0}, qual:{sim:0,nao:0}, esc:{}, total:0 };
+    for (const f of FAIXAS) g.faixas[f] = { f:0, m:0 };
+    for (const [ek] of ESCOLARIDADE) g.esc[ek] = 0;
+    return g;
+  };
+
+  for (let i = hIdx + 1; i < rows.length; i++){
+    const r = rows[i];
+    if (!r || !r.some(c => String(c).trim() !== "")) continue;
+    const grupo = grupoDe(String(r[col.mun]||"").trim());
+    if (!diagPessoas[grupo]) diagPessoas[grupo] = blank();
+    const g = diagPessoas[grupo];
+    g.total++; total++;
+
+    // idade (usada na pirâmide e no filtro de idade ativa)
+    let idade = null;
+    if (col.nasc !== undefined) {
+      const rawD = r[col.nasc];
+      let nasc = null;
+      if (rawD instanceof Date) {
+        nasc = rawD;
+      } else {
+        const dstr = String(rawD == null ? "" : rawD).trim();
+        const m = dstr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) nasc = new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+        else if (/^\d+(\.\d+)?$/.test(dstr)) {
+          const serial = Number(dstr); // datas do Excel chegam como número serial
+          if (serial > 59 && serial < 80000) nasc = new Date(Math.round((serial - 25569) * 86400000));
+        }
+      }
+      if (nasc && !isNaN(nasc)) {
+        idade = hoje.getFullYear() - nasc.getFullYear();
+        if (hoje.getMonth() < nasc.getMonth() || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--;
+      }
+    }
+
+    // sexo × faixa de idade
+    const sx = normName(r[col.sexo]||"");
+    const sexoKey = sx.startsWith("fem") ? "f" : sx.startsWith("mas") ? "m" : null;
+    if (sexoKey && idade !== null) {
+      const fx = faixaEtaria(idade);
+      if (fx) g.faixas[fx][sexoKey]++;
+    }
+
+    // escolaridade, empreender e qualificação: apenas idade ativa (>= IDADE_ATIVA anos)
+    if (idade !== null && idade >= IDADE_ATIVA) {
+      if (col.escol !== undefined) {
+        const grau = classifyEscolaridade(r[col.escol]);
+        if (grau) g.esc[grau]++;
+      }
+      if (col.emp !== undefined) {
+        const v = parseSimNao(r[col.emp]);
+        if (v) g.emp[v]++;
+      }
+      if (col.qual !== undefined) {
+        const v = parseSimNao(r[col.qual]);
+        if (v) g.qual[v]++;
+      }
+    }
+  }
+  if (!total) return null;
+  return { diagPessoas, total, gruposDesconhecidos };
+}
+
+function importInteressesWorkbook(wb){
+  let areasResult = null;      // aba "PDF" (pivot de áreas de interesse)
+  let pessoasResult = null;    // aba "DIAGNÓSTICO" (uma linha por pessoa)
+  const abas = { areas:"", pessoas:"" };
+
+  for (const sheetName of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, defval:"" });
+    for (let i = 0; i < Math.min(rows.length, 20); i++){
+      const norm = rows[i].map(c => normName(c));
+      if (!areasResult && norm.some(c => c.includes("area de interesse"))){
+        areasResult = parseAreasSheet(rows, i);
+        if (areasResult) abas.areas = sheetName;
+        break;
+      }
+      if (!pessoasResult && norm.includes("sexo") && norm.some(c => c.includes("municipio"))){
+        pessoasResult = importPessoasSheet(rows, i);
+        if (pessoasResult) abas.pessoas = sheetName;
+        break;
+      }
+    }
+    if (areasResult && pessoasResult) break;
+  }
+
+  if (!areasResult && !pessoasResult) {
+    alert("Não reconheci nenhuma aba da planilha. Esperado: aba de áreas de interesse (cabeçalho 'Área de interesse e município') e/ou aba DIAGNÓSTICO (colunas sexo, data de nascimento, município...).");
+    return;
+  }
+
+  const msgs = [];
+  if (areasResult) {
+    DATA.interesses = areasResult.interesses;
+    DATA.diag.interessesImportadoEm = todayISO();
+    DATA.diag.interessesPessoas = areasResult.pessoas;
+    msgs.push(`Áreas de interesse (aba "${abas.areas}"): ${fmt(areasResult.registros)} registros em ${Object.keys(areasResult.interesses).filter(k=>k!=="__sem__").length} município(s).`);
+    if (areasResult.gruposDesconhecidos.size) msgs.push(`Grupos não reconhecidos em áreas: ${[...areasResult.gruposDesconhecidos].join(", ")}.`);
+  }
+  if (pessoasResult) {
+    DATA.diagPessoas = pessoasResult.diagPessoas;
+    DATA.diag.pessoasImportadoEm = todayISO();
+    DATA.diag.pessoasTotal = pessoasResult.total;
+    DATA.diag.pessoasSchema = 4; // faixas quinquenais + filtro de idade ativa + escolaridade em 2 etapas do fundamental
+    msgs.push(`Diagnóstico (aba "${abas.pessoas}"): ${fmt(pessoasResult.total)} pessoa(s) em ${Object.keys(pessoasResult.diagPessoas).filter(k=>k!=="__sem__").length} município(s).`);
+    if (pessoasResult.gruposDesconhecidos.size) msgs.push(`Municípios não reconhecidos no diagnóstico (contados como "sem município"): ${[...pessoasResult.gruposDesconhecidos].join(", ")}.`);
+  }
+  if (areasResult && !pessoasResult) msgs.push("A aba DIAGNÓSTICO não foi encontrada neste arquivo — os gráficos de perfil mantêm os dados anteriores (se houver).");
+  if (pessoasResult && !areasResult) msgs.push("A aba de áreas de interesse não foi encontrada neste arquivo — o gráfico de áreas mantém os dados anteriores (se houver).");
+
+  persist();
+  render();
+  alert(msgs.join("\n"));
+}
+
+/* pivot de áreas de interesse (antiga aba única, agora "PDF") */
+function parseAreasSheet(rows, hIdx){
+  const interesses = {};
+  let grupo = null, pessoas = 0, registros = 0;
+  const gruposDesconhecidos = new Set();
+
+  for (let i = hIdx + 1; i < rows.length; i++){
+    const a = String(rows[i][0] || "").trim();
+    if (!a) continue;
+    const bRaw = rows[i][1];
+    const b = (bRaw === "" || bRaw === null || bRaw === undefined) ? null : Number(bRaw);
+    const na = normName(a);
+
+    if (na.startsWith("total geral")) {
+      if (b !== null && !isNaN(b)) pessoas = Math.max(0, Math.round(b));
+      continue;
+    }
+    if (b === null || isNaN(b)) {
+      if (na === "(vazio)" || na === "vazio") grupo = "__sem__";
+      else if (MUN_LOOKUP[na]) grupo = MUN_LOOKUP[na];
+      else { grupo = "__sem__"; gruposDesconhecidos.add(a); }
+    } else {
+      if (!grupo) grupo = "__sem__";
+      if (!interesses[grupo]) interesses[grupo] = {};
+      const v = Math.max(0, Math.round(b));
+      if (v > 0) {
+        interesses[grupo][a] = (interesses[grupo][a] || 0) + v;
+        registros += v;
+      }
+    }
+  }
+  if (!registros) return null;
+  return { interesses, pessoas, registros, gruposDesconhecidos };
+}
+
+document.getElementById("diag-file").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const wb = XLSX.read(reader.result, { type:"array" });
+      importDiagWorkbook(wb);
+    } catch(err) {
+      alert("Não foi possível ler a planilha. Formatos aceitos: .xlsx, .xls, .csv, .tsv.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = "";
+});
+
+document.getElementById("interesse-file").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const isCsv = /\.(csv|tsv)$/i.test(file.name);
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      let wb;
+      if (isCsv) {
+        // planilhas exportadas do Excel em CSV costumam vir em windows-1252
+        let text;
+        try { text = new TextDecoder("utf-8", { fatal:true }).decode(reader.result); }
+        catch(_) { text = new TextDecoder("windows-1252").decode(reader.result); }
+        wb = XLSX.read(text, { type:"string", raw:true });
+      } else {
+        wb = XLSX.read(reader.result, { type:"array" });
+      }
+      importInteressesWorkbook(wb);
+    } catch(err) {
+      alert("Não foi possível ler a planilha. Formatos aceitos: .xlsx, .xls, .csv, .tsv.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = "";
+});
+
+/* =========================================================
+   Kanban: drag & drop + cliques
+   ========================================================= */
+let draggedLeadId = null;
+
+document.getElementById("app").addEventListener("dragstart", e => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  draggedLeadId = card.dataset.lead;
+  card.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", draggedLeadId); } catch(_){}
+});
+
+document.getElementById("app").addEventListener("dragend", e => {
+  const card = e.target.closest(".card");
+  if (card) card.classList.remove("dragging");
+  document.querySelectorAll(".col.dragover").forEach(c => c.classList.remove("dragover"));
+});
+
+document.getElementById("app").addEventListener("dragover", e => {
+  const col = e.target.closest(".col");
+  if (!col || !draggedLeadId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  col.classList.add("dragover");
+});
+
+document.getElementById("app").addEventListener("dragleave", e => {
+  const col = e.target.closest(".col");
+  if (col && !col.contains(e.relatedTarget)) col.classList.remove("dragover");
+});
+
+document.getElementById("app").addEventListener("drop", e => {
+  const col = e.target.closest(".col");
+  if (!col || !draggedLeadId) return;
+  e.preventDefault();
+  const board = document.getElementById("board").dataset.mun;
+  const lead = (DATA.leads[board]||[]).find(l => l.id === draggedLeadId);
+  if (lead && lead.coluna !== col.dataset.col) {
+    lead.coluna = col.dataset.col;
+    applyReuniaoAutomation(board, lead);
+    persist();
+    render();
+  } else {
+    col.classList.remove("dragover");
+  }
+  draggedLeadId = null;
+});
+
+document.getElementById("app").addEventListener("click", e => {
+  /* botões de importação e backup (Configurações) */
+  if (e.target.closest("#btn-diag-import")) {
+    if (typeof XLSX === "undefined") { alert("A biblioteca de leitura de planilhas não carregou. Verifique sua conexão e recarregue a página."); return; }
+    document.getElementById("diag-file").click();
+    return;
+  }
+  if (e.target.closest("#btn-interesse-import")) {
+    if (typeof XLSX === "undefined") { alert("A biblioteca de leitura de planilhas não carregou. Verifique sua conexão e recarregue a página."); return; }
+    document.getElementById("interesse-file").click();
+    return;
+  }
+  if (e.target.closest("#btn-export")) { exportJSON(); return; }
+  if (e.target.closest("#btn-import")) { document.getElementById("file-import").click(); return; }
+  if (e.target.closest("#btn-reset")) { resetData(); return; }
+
+  /* clique numa atividade abre o card do lead no município */
+  const rowLink = e.target.closest("tr.row-link[data-openlead]");
+  if (rowLink && !e.target.closest("a")) {
+    gotoLead(rowLink.dataset.openboard, rowLink.dataset.openlead);
+    return;
+  }
+
+  /* kanban */
+  const addBtn = e.target.closest(".col-add");
+  if (addBtn) {
+    const board = document.getElementById("board").dataset.mun;
+    openLeadModal(board, null, addBtn.dataset.addcol);
+    return;
+  }
+  if (e.target.closest("#btn-new-lead")) {
+    const board = document.getElementById("board").dataset.mun;
+    openLeadModal(board, null, "Backlog");
+    return;
+  }
+  if (e.target.closest("a.c-ata")) return;
+  const card = e.target.closest(".card");
+  if (card) {
+    const board = document.getElementById("board").dataset.mun;
+    openLeadModal(board, card.dataset.lead);
+  }
+});
+
+document.getElementById("app").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const card = e.target.closest(".card");
+  if (card) {
+    e.preventDefault();
+    const board = document.getElementById("board").dataset.mun;
+    openLeadModal(board, card.dataset.lead);
+  }
+});
+
+/* =========================================================
+   Modal de lead
+   ========================================================= */
+let modalCtx = null;
+
+function boardLabel(board){
+  if (board === VARIOS) return "Vários municípios · Quadro geral";
+  return `${board} · ${BLOCOS[blocoOf(board)].nome}`;
+}
+
+function openLeadModal(board, leadId, colunaInicial){
+  const isNew = !leadId;
+  const lead = isNew
+    ? Object.assign(normalizeLead({}), { coluna: colunaInicial || "Backlog" })
+    : (DATA.leads[board]||[]).find(l => l.id === leadId);
+  if (!lead) return;
+
+  modalCtx = { board, leadId: isNew ? null : leadId, tarefas: lead.tarefas.map(t => ({...t})) };
+
+  const colOptions = COLUNAS.map(c => `<option value="${esc(c)}" ${lead.coluna===c?"selected":""}>${esc(c)}</option>`).join("");
+  const stOptions = Object.entries(STATUS).map(([k,v]) => `<option value="${k}" ${lead.status===k?"selected":""}>${v}</option>`).join("");
+  const progOptions = `<option value="">—</option>` + Object.entries(MODULOS)
+    .map(([k,v]) => `<option value="${k}" ${lead.programa===k?"selected":""}>${v}</option>`).join("");
+  const meioList = MEIOS_CONTATO.map(m => `<option value="${m}">`).join("");
+
+  document.getElementById("modal-root").innerHTML = `
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="${isNew?"Novo lead":"Editar lead"}">
+      <div class="modal-top">
+        <h3>${isNew ? "Novo lead" : "Editar lead"}</h3>
+        <p class="modal-sub">${boardLabel(board)}</p>
+      </div>
+      <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full">
+          <label for="f-nome">Nome</label>
+          <input id="f-nome" type="text" value="${esc(lead.nome)}" placeholder="Nome do contato">
+        </div>
+        <div class="field full">
+          <label for="f-inst">Instituição ou empresa</label>
+          <input id="f-inst" type="text" value="${esc(lead.instituicao)}" placeholder="Ex.: Prefeitura, ONG, empresa">
+        </div>
+        <div class="field">
+          <label for="f-email">E-mail</label>
+          <input id="f-email" type="email" value="${esc(lead.email)}" placeholder="nome@dominio.com">
+        </div>
+        <div class="field">
+          <label for="f-whats">WhatsApp</label>
+          <input id="f-whats" type="tel" value="${esc(lead.whatsapp)}" placeholder="(11) 90000-0000">
+        </div>
+        <div class="field">
+          <label for="f-site">Site</label>
+          <input id="f-site" type="text" value="${esc(lead.site)}" placeholder="https://">
+        </div>
+        <div class="field">
+          <label for="f-meio">Meio de contato inicial</label>
+          <input id="f-meio" type="text" list="meios" value="${esc(lead.meioContato)}" placeholder="Ex.: E-mail, WhatsApp">
+          <datalist id="meios">${meioList}</datalist>
+        </div>
+        <div class="field">
+          <label for="f-prog">Módulo</label>
+          <select id="f-prog">${progOptions}</select>
+        </div>
+        <div class="field">
+          <label for="f-status">Status de atividade</label>
+          <select id="f-status">${stOptions}</select>
+        </div>
+        <div class="field full">
+          <label for="f-coluna">Etapa do funil</label>
+          <select id="f-coluna">${colOptions}</select>
+        </div>
+        <div class="field full">
+          <label for="f-ata">Ata de reunião (link do Teams)</label>
+          <input id="f-ata" type="url" value="${esc(lead.ataLink)}" placeholder="https://teams.microsoft.com/...">
+        </div>
+        <div class="checklist">
+          <label>Checklist de tarefas</label>
+          <div class="checklist-items" id="checklist-items"></div>
+          <div class="task-add">
+            <input id="task-input" type="text" placeholder="Nova tarefa e Enter">
+            <button id="task-add-btn" type="button">Adicionar</button>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="modal-actions">
+        ${isNew ? "" : `<button class="btn-danger" id="btn-delete-lead">Excluir lead</button>`}
+        <button class="btn-ghost" id="btn-cancel" style="margin-left:auto">Cancelar</button>
+        <button class="btn-primary" id="btn-save-lead">${isNew ? "Criar lead" : "Salvar alterações"}</button>
+      </div>
+    </div>
+  </div>`;
+
+  renderChecklist();
+  document.getElementById("f-nome").focus();
+}
+
+function renderChecklist(){
+  const wrap = document.getElementById("checklist-items");
+  if (!wrap) return;
+  if (!modalCtx.tarefas.length) {
+    wrap.innerHTML = `<p class="empty-note">Nenhuma tarefa ainda.</p>`;
+    return;
+  }
+  wrap.innerHTML = modalCtx.tarefas.map((t,i) => `
+    <div class="task ${t.feito?"done":""}">
+      <input type="checkbox" ${t.feito?"checked":""} data-task="${i}" aria-label="Concluir tarefa">
+      <span class="t-text">${esc(t.texto)}</span>
+      <input type="text" class="t-resp" value="${esc(t.responsavel)}" data-taskresp="${i}" placeholder="Responsável" aria-label="Responsável pela tarefa">
+      <span class="t-date">
+        <label for="t-date-${i}">Conclusão</label>
+        <input type="date" id="t-date-${i}" value="${esc(t.dataConclusao)}" data-taskdate="${i}" aria-label="Data de conclusão da tarefa">
+      </span>
+      <button class="t-del" data-deltask="${i}" title="Remover tarefa" aria-label="Remover tarefa">×</button>
+    </div>`).join("");
+}
+
+function addTaskFromInput(){
+  const input = document.getElementById("task-input");
+  const texto = input.value.trim();
+  if (!texto) return;
+  modalCtx.tarefas.push({ texto, feito:false, dataConclusao:"", responsavel:"" });
+  input.value = "";
+  renderChecklist();
+  input.focus();
+}
+
+function closeModal(){
+  document.getElementById("modal-root").innerHTML = "";
+  modalCtx = null;
+}
+
+document.getElementById("modal-root").addEventListener("click", e => {
+  if (e.target.id === "modal-backdrop") { closeModal(); return; }
+  if (e.target.id === "btn-cancel") { closeModal(); return; }
+  if (e.target.id === "task-add-btn") { addTaskFromInput(); return; }
+
+  const del = e.target.closest("[data-deltask]");
+  if (del) {
+    modalCtx.tarefas.splice(Number(del.dataset.deltask), 1);
+    renderChecklist();
+    return;
+  }
+
+  if (e.target.id === "btn-delete-lead") {
+    if (confirm("Excluir este lead e todas as suas tarefas?")) {
+      DATA.leads[modalCtx.board] = DATA.leads[modalCtx.board].filter(l => l.id !== modalCtx.leadId);
+      persist(); closeModal(); render();
+    }
+    return;
+  }
+
+  if (e.target.id === "btn-save-lead") {
+    const payload = {
+      nome: document.getElementById("f-nome").value.trim(),
+      instituicao: document.getElementById("f-inst").value.trim(),
+      email: document.getElementById("f-email").value.trim(),
+      whatsapp: document.getElementById("f-whats").value.trim(),
+      site: document.getElementById("f-site").value.trim(),
+      meioContato: document.getElementById("f-meio").value.trim(),
+      ataLink: document.getElementById("f-ata").value.trim(),
+      programa: document.getElementById("f-prog").value,
+      status: document.getElementById("f-status").value,
+      coluna: document.getElementById("f-coluna").value,
+      tarefas: modalCtx.tarefas
+    };
+    if (!payload.nome && !payload.instituicao) {
+      alert("Preencha ao menos o nome ou a instituição do lead.");
+      return;
+    }
+    let lead;
+    if (modalCtx.leadId) {
+      lead = DATA.leads[modalCtx.board].find(l => l.id === modalCtx.leadId);
+      Object.assign(lead, payload);
+    } else {
+      lead = normalizeLead(Object.assign({ id: uid() }, payload));
+      DATA.leads[modalCtx.board].push(lead);
+    }
+    applyReuniaoAutomation(modalCtx.board, lead);
+    persist(); closeModal(); render();
+  }
+});
+
+document.getElementById("modal-root").addEventListener("change", e => {
+  const cb = e.target.closest("input[type=checkbox][data-task]");
+  if (cb) {
+    const i = Number(cb.dataset.task);
+    modalCtx.tarefas[i].feito = cb.checked;
+    if (cb.checked && !modalCtx.tarefas[i].dataConclusao) {
+      modalCtx.tarefas[i].dataConclusao = todayISO();
+    }
+    renderChecklist();
+    return;
+  }
+  const dt = e.target.closest("input[type=date][data-taskdate]");
+  if (dt) {
+    modalCtx.tarefas[Number(dt.dataset.taskdate)].dataConclusao = dt.value;
+    return;
+  }
+  const resp = e.target.closest("input[data-taskresp]");
+  if (resp) {
+    modalCtx.tarefas[Number(resp.dataset.taskresp)].responsavel = resp.value.trim();
+  }
+});
+
+document.getElementById("modal-root").addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeModal(); return; }
+  if (e.key === "Enter" && e.target.id === "task-input") {
+    e.preventDefault();
+    addTaskFromInput();
+  }
+});
+
+/* =========================================================
+   Exportar / importar / limpar (JSON do painel)
+   ========================================================= */
+function exportJSON(){
+  const payload = { exportadoEm: new Date().toISOString(), versao: 4, dados: DATA };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "superacao-painel-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function resetData(){
+  const aviso = CLOUD && session
+    ? "Isso apaga TODOS os dados do painel, inclusive no banco compartilhado — todos os usuários perderão os dados. Deseja mesmo continuar?"
+    : "Isso apaga todos os dados preenchidos neste navegador (indicadores, leads e planilhas importadas). Deseja continuar?";
+  if (confirm(aviso)) {
+    localStorage.removeItem(STORAGE_KEY);
+    OLD_KEYS.forEach(k => localStorage.removeItem(k));
+    DATA = loadState();
+    if (CLOUD && session) pushStateNow();
+    render();
+  }
+}
+
+document.getElementById("file-import").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const dados = parsed.dados || parsed;
+      DATA = sanitizeState(dados.municipios ? dados : { municipios: dados, leads: {} });
+      persist(); render();
+    } catch(err) {
+      alert("Não foi possível ler o arquivo. Verifique se é um JSON exportado por este painel.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+/* =========================================================
+   Boot
+   ========================================================= */
+async function boot(){
+  render();
+  if (!CLOUD) return;
+  setSync("saving", "conectando…");
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((_event, s) => {
+    const wasLogged = !!session;
+    session = s;
+    if (session && !wasLogged) initCloud();
+    if (!session) { showLogin(); }
+  });
+  if (session) initCloud();
+  else showLogin();
+}
+boot();
+</script>
+</body>
+</html>
